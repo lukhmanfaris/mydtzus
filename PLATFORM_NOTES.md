@@ -1,3 +1,7 @@
+> **Superseded (1 Oct 2026).** This describes the previous access-code / instant-voucher
+> build, which has been replaced by the Intro → Form → Thank-you flow on Cloudflare
+> Workers. Kept for history. See `README.md` for the current app.
+
 # Platform notes — Cloudflare and Gmail
 
 Research for two open questions, 19 September 2026. Findings only; both

@@ -1,156 +1,152 @@
-# Tebus Baucar Anda — Campaign Voucher Redemption
+# ZUS Coffee Voucher Campaign
 
-Access-code gate → native form → single-use ZUS Coffee voucher.
-Bahasa Malaysia, mobile first.
+Intro & Terms → campaign form → thank-you. English, mobile first.
+Vouchers are **not** issued by the app: the team emails them (via Zoho) within
+48 hours, using the submissions exported from Supabase.
 
-Built in two phases against one codebase. Phase 1 runs on seeded in-memory mock
-data; Phase 2 swaps to Supabase. **The UI is identical in both.**
-
-> Read `FIXES.md` before changing anything. It records an audit of this build
-> against the handoff spec, including five security issues that were reproduced
-> as working exploits, and lists the decisions still open.
+```
+Zoho email blast (manual) ──CTA──▶  1. Intro image + T&C slides → "I Agree"
+                                     2. Form: Referral Code · Full Name · Phone · Email · Company
+                                        + data-consent checkbox → Submit
+                                     3. Thank you — "voucher within 48 hours"
+                                     (Closed screen once CAMPAIGN_END_ISO passes)
+```
 
 ---
 
-## Run it
+## Stack
+
+| Part | What |
+|---|---|
+| `src/` | React 19 + Tailwind 4 SPA, built by Vite |
+| `worker/index.ts` | Cloudflare Worker (Hono): `GET /api/config`, `POST /api/submit` |
+| `lib/validation/` | Zod schema + phone/email normalisation, shared by browser and Worker |
+| `lib/data/` | Adapter boundary — `mock` (local) or `supabase` (production) |
+| `lib/security/turnstile.ts` | Cloudflare Turnstile server-side check |
+| `supabase/migrations/` | `submissions` table + `submissions_export` view |
+| `supabase/optional/` | Voucher auto-assign script — only if you choose that option |
+
+The React app is served by Workers Assets; only `/api/*` runs the Worker.
+
+### What `POST /api/submit` does, in order
+
+1. **Closing date** — after `CAMPAIGN_END_ISO` → `410`, UI shows "campaign has ended".
+2. **Rate limit** — 5 submissions per minute per IP (`CF-Connecting-IP`, set by Cloudflare's edge and not spoofable) → `429`.
+3. **Validation** — Zod, with phone normalised to `60XXXXXXXXX`, email lowercased, referral code uppercased → `400` with per-field messages.
+4. **Bot check** — Turnstile token verified with Cloudflare → `403`. Fails closed if Cloudflare is unreachable or the secret is missing.
+5. **Insert** into `submissions` with server-stamped `terms_accepted_at` / `consent_at` → `201`.
+
+Duplicates are allowed in by design; the export view flags them.
+
+---
+
+## Run locally
 
 ```bash
 npm install
-cp .env.example .env
+cp .dev.vars.example .dev.vars     # mock data + Turnstile test keys
+npm run dev                        # http://localhost:5173
 ```
 
-Then set **`SESSION_SECRET`** in `.env`. The app will not start without it:
+`npm run dev` runs the Worker in the real Workers runtime (via `@cloudflare/vite-plugin`).
+With `DATA_SOURCE=mock`, each submission is printed to the terminal and kept in
+memory until restart. Set `CAMPAIGN_END_ISO` to a past date to preview the
+closed screen.
 
 ```bash
-openssl rand -base64 48
+npm run lint      # type-check browser + Worker
+npm run build     # production build into dist/
+npm run preview   # serve the production build locally
 ```
+
+---
+
+## Go live
+
+**1. Supabase** — create a project, then run
+`supabase/migrations/20261001000000_submissions.sql` in the SQL Editor.
+
+**2. Turnstile** — Cloudflare dashboard → Turnstile → add a widget for your
+domain (mode: *Managed*). Note the site key and secret key.
+
+**3. Configure the Worker.** Non-secret values go in `wrangler.jsonc` → `vars`:
+
+```jsonc
+"DATA_SOURCE": "supabase",
+"SUPABASE_URL": "https://<project>.supabase.co",
+"TURNSTILE_SITE_KEY": "<site key>",
+"CAMPAIGN_END_ISO": "2026-12-31T23:59:59+08:00"
+```
+
+Secrets go in with Wrangler — never in a file:
 
 ```bash
-npm run dev          # http://localhost:3000
+npx wrangler secret put SUPABASE_SERVICE_ROLE_KEY
+npx wrangler secret put TURNSTILE_SECRET_KEY
 ```
 
-Phase 1 needs no Supabase credentials. Leave both Supabase variables blank.
-If a hosting panel insists on values, use placeholders — do not paste a real
-service role key into a build environment.
+**4. Deploy** — `npm run deploy`, then attach your custom domain in the
+Cloudflare dashboard (Workers → the worker → Settings → Domains & Routes).
 
-Test codes print to the **server console** at boot in mock mode. They are
-deliberately not in the browser bundle (spec §9).
+**5. Before the Zoho blast**, check on the live URL:
+- the form submits and a row appears in `submissions`;
+- `src/content/campaign.ts` has the real image and T&C, and `CONTENT_IS_DRAFT = false`
+  (otherwise a yellow "Draft content" banner shows on the intro page);
+- the closing date is right.
 
 ---
 
-## Architecture
+## Content
 
-```
-src/                      React SPA — gate, form, success
-server.ts                 Express: /api/verify, /api/claim, /api/session
-lib/data/adapter.ts       ← the boundary. Nothing above it touches a database.
-lib/data/mock.ts          Phase 1 in-memory store
-lib/data/supabase.ts      Phase 2, service role, server-side only
-lib/auth/session.ts       HMAC-signed httpOnly cookie, 2h
-lib/security/rateLimit.ts IP resolution + verify throttling
-lib/validation/           Zod schema and field normalisation
-supabase/migrations/      Schema, RLS, atomic draw RPC
-```
-
-Route handlers import `dataAdapter` and nothing below it. No component imports
-a database client. No component holds a code list.
-
-### Invariants — do not let a patch break these
-
-- Nothing above `lib/data/adapter.ts` touches Supabase directly.
-- The UI does not change between phases.
-- `VERIFIED` stays re-enterable. Only `CLAIMED` rejects.
-- The draw stays in Postgres, `FOR UPDATE SKIP LOCKED`, never in application code.
-- `/api/claim` is idempotent — already claimed returns the linked voucher.
-- The service role key is server-only. Never `NEXT_PUBLIC_`.
-- The voucher code never appears in a verify response.
-- Pool-exhausted gets its own screen, not a generic error.
+All copy that marketing will want to change lives in **`src/content/campaign.ts`**:
+the hero image path, the T&C sections (one slide each — add or remove freely),
+and the draft flag. Put the real campaign image in `public/` and point
+`HERO_IMAGE.src` at it.
 
 ---
 
-## Switching to Supabase
+## Sending vouchers
 
-**1. Run the migration** — Supabase SQL Editor or CLI:
-
-```
-supabase/migrations/20260101000000_campaign_vouchers.sql
-```
-
-Creates the three tables, enables and forces RLS denying `anon` and
-`authenticated`, creates `draw_voucher_atomic` with `EXECUTE` granted to
-`service_role` only, and adds a `campaign_funnel` reporting view.
-
-**2. Load the pool and the recipient list.** Access codes must be uppercase —
-a `CHECK` constraint enforces it, because a lowercase row would be permanently
-unreachable through the gate.
+Supabase dashboard → SQL Editor → run the query below → download the results
+as CSV:
 
 ```sql
-INSERT INTO vouchers (code, expires_at) VALUES
-  ('REAL-CODE-1', '2026-12-31'),
-  ('REAL-CODE-2', '2026-12-31');
-
-INSERT INTO recipients (full_name, email, access_code, status) VALUES
-  ('Ahmad Farhan', 'farhan@example.com.my', 'K7M4QX', 'LOCKED');
+-- One row per person: the earliest entry for each email and each phone.
+select submitted_at, full_name, email, phone, company_name, referral_code, voucher_code
+from submissions_export
+where status = 'PENDING' and first_by_email and first_by_phone
+order by submitted_at;
 ```
 
-Codes should be alphanumeric excluding `I`, `O`, `0`, `1` — they get retyped
-from an email on a phone (§9).
+`email_count` / `phone_count` show how many entries share a value, for anything
+you want to review by hand.
 
-**3. Set the environment:**
-
-```env
-DATA_SOURCE=supabase
-NEXT_PUBLIC_SUPABASE_URL=https://your-project.supabase.co
-SUPABASE_SERVICE_ROLE_KEY=…          # server-only
-SESSION_SECRET=…                      # required
-TRUSTED_CLIENT_IP_HEADER=…            # match your platform — see .env.example
-CAMPAIGN_END_ISO=2026-12-31T23:59:59+08:00
-```
-
-**4. Before handing links to marketing**, confirm:
+After sending from Zoho, record it:
 
 ```sql
--- must fail when run as anon
-select draw_voucher_atomic('00000000-0000-0000-0000-000000000000'::uuid, '{}'::jsonb);
-
--- must return zero rows
-SELECT 'pool smaller than recipient list' AS problem
-  WHERE (SELECT count(*) FROM vouchers WHERE status = 'AVAILABLE')
-      < (SELECT count(*) FROM recipients WHERE status <> 'CLAIMED')
-UNION ALL
-SELECT 'voucher expiry in the past'
-  WHERE EXISTS (SELECT 1 FROM vouchers WHERE expires_at <= current_date)
-UNION ALL
-SELECT 'placeholder codes still in the pool'
-  WHERE EXISTS (SELECT 1 FROM vouchers WHERE code ILIKE 'PLACEHOLDER%');
+update submissions set status = 'SENT', voucher_sent_at = now()
+where id in (...);            -- or by email list
+-- Exclude an entry: set status = 'REJECTED'
 ```
+
+### Matching vouchers to people — still to decide
+
+- **Manual:** paste codes into the `voucher_code` column (or keep them in your
+  own spreadsheet). Nothing else needed.
+- **Automatic:** run `supabase/optional/voucher_auto_assign.sql` once, load ZUS's
+  codes into `vouchers`, then `select assign_pending_vouchers();` before each
+  export. It gives one code per person (earliest entry per email and phone),
+  skips `REJECTED`, and is safe to re-run. Instructions are at the top of the file.
+
+Either way, no change to the app or its screens.
 
 ---
 
-## Reporting
+## Limits worth knowing
 
-```sql
-SELECT * FROM campaign_funnel;
-```
-
-`Sent → Verified → Submitted → Claimed`. The **Verified-to-Submitted gap** is
-the leak worth watching — it tells you whether the form is too long, which is
-the one thing still fixable mid-campaign. `verified_not_claimed` is also the
-correct target list for a reminder send.
-
----
-
-## Deployment
-
-This is a Vite SPA served by a long-running Express process — **not** a Next.js
-app, despite what the handoff specifies. It runs on any Node host (Cloud Run,
-Render, Fly, a container). It does **not** deploy to Vercel as-is. See
-`PLATFORM_NOTES.md`.
-
-```bash
-npm run build && npm start
-```
-
-Rate limit state is in-process. On more than one instance the effective limit
-multiplies by the instance count — see the note at the bottom of
-`lib/security/rateLimit.ts` before scaling out.
+- The rate limit is counted per Cloudflare location, not globally — it dampens
+  abuse, it is not exact accounting. Turnstile is the main bot defence.
+- Turnstile does not stop real people who were forwarded the link. The referral
+  code is free text, so the export review is the safeguard there.
+- `FIXES.md` and `PLATFORM_NOTES.md` describe the **previous** access-code
+  build and are kept for history only.

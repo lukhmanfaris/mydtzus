@@ -1,51 +1,43 @@
 import { z } from 'zod';
-import { normalisePhone, normaliseEmail, normaliseText } from './normalise.js';
+import {
+  normalisePhone,
+  normaliseEmail,
+  normaliseText,
+  normaliseReferralCode,
+} from './normalise.js';
 
 /**
- * ─────────────────────────────────────────────────────────────────────────────
- * PENDING DECISION — form field set
- * ─────────────────────────────────────────────────────────────────────────────
- * Handoff spec §8 defines four required fields:
- *     Full name · Email · Phone · Company (Syarikat)
+ * The campaign form contract. Used by the browser for instant feedback and by
+ * the Worker as the authoritative check — one schema, so the two never drift.
  *
- * This build shipped a different set:
- *     Full name · Phone · Email · State/Outlet (optional) · T&C checkbox
- *
- * `company` is absent; `stateOrOutlet` and `agreeTerms` are not in either spec.
- *
- * The field set is NOT changed here — that decision is still open. This file
- * matches what the UI currently renders so nothing breaks. When the decision is
- * made, this is the only place the contract changes:
- *
- *   • To follow spec §8 exactly:
- *       - add:    company: z.string().transform(normaliseText).pipe(
- *                          z.string().min(2, {...}).max(100, {...})),
- *       - remove: stateOrOutlet, agreeTerms
- *       - add a `Syarikat` input to src/components/FormScreen.tsx
- *       - drop the state <select> and the T&C checkbox from that file
- *
- *   • To keep both: add `company` above and leave the rest in place.
- *     Note §15 — every extra field widens the Verified-to-Submitted gap.
- * ─────────────────────────────────────────────────────────────────────────────
+ * Field set (confirmed): Referral Code · Full Name · Phone · Email · Company Name,
+ * plus the T&C agreement from the intro page and the data-collection consent.
  */
+export const SubmissionSchema = z.object({
+  /** Free text — a shared code we hand out, not validated against a list. */
+  referralCode: z
+    .string({ message: 'Please enter your referral code.' })
+    .transform(normaliseReferralCode)
+    .pipe(
+      z
+        .string()
+        .min(1, { message: 'Please enter your referral code.' })
+        .max(50, { message: 'Referral code is too long.' })
+    ),
 
-export const ClaimFormSchema = z.object({
   fullName: z
-    .string()
+    .string({ message: 'Please enter your full name.' })
     .transform(normaliseText)
     .pipe(
       z
         .string()
-        .min(2, { message: 'Sila masukkan nama penuh yang sah (minimum 2 huruf).' })
-        .max(100, { message: 'Nama terlalu panjang.' })
+        .min(2, { message: 'Please enter your full name.' })
+        .max(100, { message: 'Name is too long.' })
     ),
 
-  /**
-   * FIX H3 — normalised to `60XXXXXXXXX` before it reaches storage.
-   * Any common local format is accepted and rewritten silently, per spec §8.
-   */
+  /** Normalised to `60XXXXXXXXX` before it reaches storage. */
   phone: z
-    .string({ message: 'Sila masukkan nombor telefon anda.' })
+    .string({ message: 'Please enter your phone number.' })
     .superRefine((val, ctx) => {
       const result = normalisePhone(val);
       if (!result.ok) {
@@ -54,33 +46,53 @@ export const ClaimFormSchema = z.object({
     })
     .transform((val) => {
       const result = normalisePhone(val);
-      // superRefine has already rejected the invalid case; this is unreachable
-      // on a successful parse, but keeps the transform total.
+      // superRefine has already rejected the invalid case; this keeps the
+      // transform total.
       return result.ok ? result.value : val;
     }),
 
-  /** FIX H4 — lowercased on store, per spec §8. */
+  /** Lowercased on store. */
   email: z
-    .string()
+    .string({ message: 'Please enter your email address.' })
     .transform(normaliseEmail)
     .pipe(
       z
-        .string()
-        .email({ message: 'Sila masukkan alamat e-mel yang sah.' })
-        .max(120, { message: 'Alamat e-mel terlalu panjang.' })
+        .email({ message: 'Please enter a valid email address.' })
+        .max(120, { message: 'Email address is too long.' })
     ),
 
-  // ── Not in either spec. Retained pending the field-set decision above. ──
-  stateOrOutlet: z
-    .string()
+  companyName: z
+    .string({ message: 'Please enter your company name.' })
     .transform(normaliseText)
-    .pipe(z.string().max(100))
-    .optional()
-    .default(''),
+    .pipe(
+      z
+        .string()
+        .min(2, { message: 'Please enter your company name.' })
+        .max(150, { message: 'Company name is too long.' })
+    ),
 
-  agreeTerms: z.literal(true, {
-    message: 'Sila tandakan persetujuan Terma & Syarat untuk meneruskan.',
+  /** Set by the "Agree" button at the end of the T&C slides. */
+  termsAccepted: z.literal(true, {
+    message: 'Please read and agree to the Terms & Conditions first.',
+  }),
+
+  /** The consent checkbox at the bottom of the form. */
+  consent: z.literal(true, {
+    message: 'Please agree to the data collection consent to continue.',
   }),
 });
 
-export type ClaimFormInput = z.infer<typeof ClaimFormSchema>;
+export type SubmissionInput = z.input<typeof SubmissionSchema>;
+export type Submission = z.output<typeof SubmissionSchema>;
+
+/** Field name → first error message. Shape shared by the API and the form. */
+export type FieldErrors = Partial<Record<keyof SubmissionInput, string>>;
+
+export function toFieldErrors(error: z.ZodError): FieldErrors {
+  const out: FieldErrors = {};
+  for (const issue of error.issues) {
+    const key = issue.path[0] as keyof SubmissionInput | undefined;
+    if (key && !out[key]) out[key] = issue.message;
+  }
+  return out;
+}
