@@ -1,0 +1,6 @@
+{
+  "name": "Tebus Baucar Anda",
+  "description": "A campaign voucher redemption web application with access code gating, verification sessions, and single-use ZUS Coffee voucher distribution.",
+  "requestFramePermissions": [],
+  "majorCapabilities": []
+}
