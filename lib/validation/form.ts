@@ -11,7 +11,7 @@ import {
  * the Worker as the authoritative check — one schema, so the two never drift.
  *
  * Field set (confirmed): Referral Code · Full Name · Phone · Email · Company Name,
- * plus the T&C agreement from the intro page and the data-collection consent.
+ * plus two required tick boxes: data-collection consent and T&C acceptance.
  */
 export const SubmissionSchema = z.object({
   /** Free text — a shared code we hand out, not validated against a list. */
@@ -71,12 +71,12 @@ export const SubmissionSchema = z.object({
         .max(150, { message: 'Company name is too long.' })
     ),
 
-  /** Set by the "Agree" button at the end of the T&C slides. */
+  /** "I accept the Terms and Conditions." tick box on the form. */
   termsAccepted: z.literal(true, {
-    message: 'Please read and agree to the Terms & Conditions first.',
+    message: 'Please accept the Terms and Conditions to continue.',
   }),
 
-  /** The consent checkbox at the bottom of the form. */
+  /** Data-collection consent tick box on the form. */
   consent: z.literal(true, {
     message: 'Please agree to the data collection consent to continue.',
   }),

@@ -6,6 +6,7 @@ import {
   type SubmissionInput,
 } from '../../lib/validation/form.js';
 import { useTurnstile } from '../useTurnstile.js';
+import { PDPA_NOTICE_URL, PRIVACY_POLICY_URL } from '../content/campaign.js';
 
 interface FormScreenProps {
   turnstileSiteKey: string | null;
@@ -42,6 +43,7 @@ const EMPTY: Record<TextField, string> = {
 export const FormScreen: React.FC<FormScreenProps> = ({ turnstileSiteKey, onSubmitted, onClosed }) => {
   const [values, setValues] = useState(EMPTY);
   const [consent, setConsent] = useState(false);
+  const [termsAccepted, setTermsAccepted] = useState(false);
   const [fieldErrors, setFieldErrors] = useState<FieldErrors>({});
   const [generalError, setGeneralError] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(false);
@@ -52,10 +54,13 @@ export const FormScreen: React.FC<FormScreenProps> = ({ turnstileSiteKey, onSubm
     const next = { ...fieldErrors };
     delete next[name];
     setFieldErrors(next);
+    if (Object.keys(next).length === 0) setGeneralError(null);
   };
 
   const focusFirstError = (errors: FieldErrors) => {
-    const first = [...FIELDS.map((f) => f.name), 'consent'].find((n) => errors[n as keyof FieldErrors]);
+    const first = [...FIELDS.map((f) => f.name), 'consent', 'termsAccepted'].find(
+      (n) => errors[n as keyof FieldErrors]
+    );
     if (first) document.getElementById(`field-${first}`)?.focus();
   };
 
@@ -63,7 +68,11 @@ export const FormScreen: React.FC<FormScreenProps> = ({ turnstileSiteKey, onSubm
     e.preventDefault();
     if (isLoading) return;
 
-    const input: SubmissionInput = { ...values, termsAccepted: true, consent: consent as true };
+    const input: SubmissionInput = {
+      ...values,
+      consent: consent as true,
+      termsAccepted: termsAccepted as true,
+    };
     const parsed = SubmissionSchema.safeParse(input);
     if (!parsed.success) {
       const errors = toFieldErrors(parsed.error);
@@ -162,30 +171,33 @@ export const FormScreen: React.FC<FormScreenProps> = ({ turnstileSiteKey, onSubm
           );
         })}
 
-        <div className="pt-2">
-          <label className="flex items-start gap-3 cursor-pointer">
-            <input
-              id="field-consent"
-              type="checkbox"
-              checked={consent}
-              onChange={(e) => {
-                setConsent(e.target.checked);
-                clearError('consent');
-              }}
-              aria-invalid={!!fieldErrors.consent}
-              aria-describedby={fieldErrors.consent ? 'error-consent' : undefined}
-              className="mt-0.5 h-5 w-5 shrink-0 accent-[#1d1d1f] cursor-pointer"
-            />
-            <span className="text-[14px] leading-relaxed text-[#1d1d1f]">
-              I agree to the collection and use of my personal data for the purpose of this campaign,
-              as described in the Terms &amp; Conditions.
-            </span>
-          </label>
-          {fieldErrors.consent && (
-            <p id="error-consent" className="mt-1 ml-8 text-[12px] text-[#d70015] font-medium">
-              {fieldErrors.consent}
-            </p>
-          )}
+        <div className="pt-2 space-y-4">
+          <TickBox
+            name="consent"
+            checked={consent}
+            error={fieldErrors.consent}
+            onChange={(v) => {
+              setConsent(v);
+              clearError('consent');
+            }}
+          >
+            I consent to MYDATA Analytics Sdn Bhd collecting and using my personal data to administer
+            this Programme and deliver my voucher, in accordance with MYDATA&rsquo;s{' '}
+            <ExternalLink href={PRIVACY_POLICY_URL}>Privacy Policy</ExternalLink> and{' '}
+            <ExternalLink href={PDPA_NOTICE_URL}>PDPA Notice</ExternalLink>.
+          </TickBox>
+
+          <TickBox
+            name="termsAccepted"
+            checked={termsAccepted}
+            error={fieldErrors.termsAccepted}
+            onChange={(v) => {
+              setTermsAccepted(v);
+              clearError('termsAccepted');
+            }}
+          >
+            I accept the Terms and Conditions.
+          </TickBox>
         </div>
 
         {/* Turnstile renders here; invisible unless a challenge is needed. */}
@@ -218,3 +230,40 @@ export const FormScreen: React.FC<FormScreenProps> = ({ turnstileSiteKey, onSubm
     </div>
   );
 };
+
+const ExternalLink: React.FC<{ href: string; children: React.ReactNode }> = ({ href, children }) => (
+  // New tab, so a half-filled form is not lost.
+  <a href={href} target="_blank" rel="noopener noreferrer" className="font-medium underline underline-offset-2">
+    {children}
+  </a>
+);
+
+interface TickBoxProps {
+  name: 'consent' | 'termsAccepted';
+  checked: boolean;
+  error?: string;
+  onChange: (checked: boolean) => void;
+  children: React.ReactNode;
+}
+
+const TickBox: React.FC<TickBoxProps> = ({ name, checked, error, onChange, children }) => (
+  <div>
+    <label className="flex items-start gap-3 cursor-pointer">
+      <input
+        id={`field-${name}`}
+        type="checkbox"
+        checked={checked}
+        onChange={(e) => onChange(e.target.checked)}
+        aria-invalid={!!error}
+        aria-describedby={error ? `error-${name}` : undefined}
+        className="mt-0.5 h-5 w-5 shrink-0 accent-[#1d1d1f] cursor-pointer"
+      />
+      <span className="text-[14px] leading-relaxed">{children}</span>
+    </label>
+    {error && (
+      <p id={`error-${name}`} className="mt-1 ml-8 text-[12px] text-[#d70015] font-medium">
+        {error}
+      </p>
+    )}
+  </div>
+);
