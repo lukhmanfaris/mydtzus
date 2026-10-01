@@ -1,0 +1,18 @@
+# Local development only. Copy to .dev.vars (git-ignored) and run `npm run dev`.
+# Values here override the "vars" block in wrangler.jsonc.
+
+# In-memory store; rows are logged to the terminal and lost on restart.
+DATA_SOURCE=mock
+
+# Blank = never closes. Set a past date to preview the "campaign ended" screen.
+CAMPAIGN_END_ISO=
+
+# Cloudflare's published Turnstile TEST keys: always pass, no real challenge.
+#   site 2x00000000000000000000AB + secret 2x0000000000000000000000000000000AA → always fail
+# https://developers.cloudflare.com/turnstile/troubleshooting/testing/
+TURNSTILE_SITE_KEY=1x00000000000000000000AA
+TURNSTILE_SECRET_KEY=1x0000000000000000000000000000000AA
+
+# Only needed with DATA_SOURCE=supabase. The service role key is server-only.
+SUPABASE_URL=
+SUPABASE_SERVICE_ROLE_KEY=

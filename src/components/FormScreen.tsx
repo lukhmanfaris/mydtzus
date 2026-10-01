@@ -1,50 +1,80 @@
 import React, { useState } from 'react';
+import {
+  SubmissionSchema,
+  toFieldErrors,
+  type FieldErrors,
+  type SubmissionInput,
+} from '../../lib/validation/form.js';
+import { useTurnstile } from '../useTurnstile.js';
 
 interface FormScreenProps {
-  initialRecipient?: { fullName: string; email: string };
-  onSuccess: (voucherCode: string, expiresAt: string) => void;
-  onSessionExpired: () => void;
+  turnstileSiteKey: string | null;
+  onSubmitted: (email: string) => void;
+  onClosed: () => void;
 }
 
-export const FormScreen: React.FC<FormScreenProps> = ({
-  initialRecipient,
-  onSuccess,
-  onSessionExpired,
-}) => {
-  const [fullName, setFullName] = useState(initialRecipient?.fullName || '');
-  const [phone, setPhone] = useState('');
-  const [email, setEmail] = useState(initialRecipient?.email || '');
-  const [stateOrOutlet, setStateOrOutlet] = useState('Kuala Lumpur');
-  const [agreeTerms, setAgreeTerms] = useState(false);
+type TextField = 'referralCode' | 'fullName' | 'phone' | 'email' | 'companyName';
 
-  const [isLoading, setIsLoading] = useState(false);
+const FIELDS: Array<{
+  name: TextField;
+  label: string;
+  type: string;
+  placeholder: string;
+  autoComplete: string;
+  inputMode?: React.HTMLAttributes<HTMLInputElement>['inputMode'];
+}> = [
+  { name: 'referralCode', label: 'Referral Code', type: 'text', placeholder: 'As stated in your email', autoComplete: 'off' },
+  { name: 'fullName', label: 'Full Name', type: 'text', placeholder: 'Ahmad Farhan', autoComplete: 'name' },
+  { name: 'phone', label: 'Phone No.', type: 'tel', placeholder: '012-345 6789', autoComplete: 'tel', inputMode: 'tel' },
+  { name: 'email', label: 'Email', type: 'email', placeholder: 'name@company.com', autoComplete: 'email', inputMode: 'email' },
+  { name: 'companyName', label: 'Company Name', type: 'text', placeholder: 'Company Sdn Bhd', autoComplete: 'organization' },
+];
+
+const EMPTY: Record<TextField, string> = {
+  referralCode: '',
+  fullName: '',
+  phone: '',
+  email: '',
+  companyName: '',
+};
+
+/** Page 2 — the campaign form. */
+export const FormScreen: React.FC<FormScreenProps> = ({ turnstileSiteKey, onSubmitted, onClosed }) => {
+  const [values, setValues] = useState(EMPTY);
+  const [consent, setConsent] = useState(false);
+  const [fieldErrors, setFieldErrors] = useState<FieldErrors>({});
   const [generalError, setGeneralError] = useState<string | null>(null);
-  const [fieldErrors, setFieldErrors] = useState<Record<string, string[]>>({});
-  const [isPoolExhausted, setIsPoolExhausted] = useState(false);
-  const [isSessionExpired, setIsSessionExpired] = useState(false);
+  const [isLoading, setIsLoading] = useState(false);
+  const turnstile = useTurnstile(turnstileSiteKey);
+
+  const clearError = (name: keyof FieldErrors) => {
+    if (!fieldErrors[name]) return;
+    const next = { ...fieldErrors };
+    delete next[name];
+    setFieldErrors(next);
+  };
+
+  const focusFirstError = (errors: FieldErrors) => {
+    const first = [...FIELDS.map((f) => f.name), 'consent'].find((n) => errors[n as keyof FieldErrors]);
+    if (first) document.getElementById(`field-${first}`)?.focus();
+  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (isLoading) return;
 
-    // Client-side quick check (server Zod does the authoritative validation)
-    const errors: Record<string, string[]> = {};
-    if (!fullName.trim() || fullName.trim().length < 2) {
-      errors.fullName = ['Sila masukkan nama penuh yang sah (minimum 2 huruf).'];
-    }
-    if (!phone.trim() || phone.trim().length < 8) {
-      errors.phone = ['Sila masukkan nombor telefon yang sah (contoh: 0123456789).'];
-    }
-    if (!email.trim() || !email.includes('@')) {
-      errors.email = ['Sila masukkan alamat e-mel yang sah.'];
-    }
-    if (!agreeTerms) {
-      errors.agreeTerms = ['Sila tandakan persetujuan Terma & Syarat untuk meneruskan.'];
+    const input: SubmissionInput = { ...values, termsAccepted: true, consent: consent as true };
+    const parsed = SubmissionSchema.safeParse(input);
+    if (!parsed.success) {
+      const errors = toFieldErrors(parsed.error);
+      setFieldErrors(errors);
+      setGeneralError('Please check the highlighted fields.');
+      focusFirstError(errors);
+      return;
     }
 
-    if (Object.keys(errors).length > 0) {
-      setFieldErrors(errors);
-      setGeneralError('Sila semak maklumat yang dimasukkan.');
+    if (!turnstile.token) {
+      setGeneralError('Please wait a moment while we verify your browser, then try again.');
       return;
     }
 
@@ -53,255 +83,123 @@ export const FormScreen: React.FC<FormScreenProps> = ({
     setFieldErrors({});
 
     try {
-      const response = await fetch('/api/claim', {
+      const res = await fetch('/api/submit', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          fullName: fullName.trim(),
-          phone: phone.trim(),
-          email: email.trim(),
-          stateOrOutlet,
-          agreeTerms: true,
-        }),
+        body: JSON.stringify({ ...input, turnstileToken: turnstile.token }),
       });
+      const data = await res.json().catch(() => ({}));
 
-      const data = await response.json().catch(() => ({}));
-
-      if (!response.ok) {
-        // FIX C2 — 403 NOT_VERIFIED: the session names a recipient who never
-        // passed the gate (forged cookie, or a stale one after a data reset).
-        // Treated the same as an expired session: back to the gate.
-        if (response.status === 401 || response.status === 403) {
-          setIsSessionExpired(true);
-          setGeneralError('Sesi pengesahan telah tamat. Sila sahkan kod anda semula.');
-          return;
-        }
-
-        if (response.status === 503 || data.code === 'POOL_EXHAUSTED') {
-          setIsPoolExhausted(true);
-          setGeneralError('Semua baucar telah habis ditebus. Harap maaf atas sebarang kesulitan.');
-          return;
-        }
-
-        if (response.status === 400 && data.details) {
-          setFieldErrors(data.details);
-          setGeneralError(data.error || 'Maklumat borang tidak sah.');
-          return;
-        }
-
-        setGeneralError(data.error || 'Ralat semasa memproses tebusan. Sila cuba lagi.');
+      if (res.ok) {
+        onSubmitted(parsed.data.email);
         return;
       }
 
-      // Success: voucher claimed
-      onSuccess(data.voucherCode, data.expiresAt);
+      turnstile.reset();
+
+      if (res.status === 410) {
+        onClosed();
+        return;
+      }
+      if (res.status === 400 && data.fields) {
+        setFieldErrors(data.fields);
+        focusFirstError(data.fields);
+      }
+      setGeneralError(data.error || 'Something went wrong. Please try again.');
     } catch {
-      setGeneralError('Ralat sambungan. Sila semak talian internet anda.');
+      turnstile.reset();
+      setGeneralError('Connection problem. Please check your internet and try again.');
     } finally {
       setIsLoading(false);
     }
   };
 
-  // State: Verification session expired screen
-  if (isSessionExpired) {
-    return (
-      <div id="session-expired-state" className="w-full max-w-[480px] mx-auto px-4 py-12 text-center">
-        <div className="w-14 h-14 mx-auto mb-4 bg-[#fff2f2] border border-[#ffcccc] rounded-full flex items-center justify-center text-[#d70015]">
-          <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-          </svg>
-        </div>
-        <h2 className="text-[24px] font-bold text-[#1d1d1f] tracking-tight mb-2">
-          Sesi Pengesahan Telah Tamat
-        </h2>
-        <p className="text-[15px] text-[#86868b] leading-relaxed mb-6">
-          Atas sebab keselamatan, sesi pengesahan kod anda telah luput. Sila masukkan semula kod akses anda di pintu masuk kempen.
-        </p>
-        <button
-          type="button"
-          onClick={onSessionExpired}
-          className="w-full h-[50px] bg-[#1d1d1f] hover:bg-[#333336] text-white text-[16px] font-medium rounded-[980px] transition cursor-pointer"
-        >
-          Kembali ke Pintu Masuk
-        </button>
-      </div>
-    );
-  }
-
-  // State: Pool exhausted screen
-  if (isPoolExhausted) {
-    return (
-      <div id="pool-exhausted-state" className="w-full max-w-[480px] mx-auto px-4 py-12 text-center">
-        <div className="w-14 h-14 mx-auto mb-4 bg-[#f5f5f7] border border-[#e5e5e7] rounded-full flex items-center justify-center text-[#1d1d1f]">
-          <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M20 12H4M12 4v16" />
-          </svg>
-        </div>
-        <h2 className="text-[24px] font-bold text-[#1d1d1f] tracking-tight mb-2">
-          Baucar Telah Habis Ditebus
-        </h2>
-        <p className="text-[15px] text-[#86868b] leading-relaxed mb-6">
-          Semua kuota baucar ZUS Coffee bagi kempen ini telah habis ditebus oleh para peserta. Terima kasih atas sokongan anda.
-        </p>
-        <button
-          type="button"
-          onClick={onSessionExpired}
-          className="w-full h-[50px] bg-[#1d1d1f] hover:bg-[#333336] text-white text-[16px] font-medium rounded-[980px] transition cursor-pointer"
-        >
-          Kembali ke Halaman Utama
-        </button>
-      </div>
-    );
-  }
+  const verifying = !!turnstileSiteKey && !turnstile.token && !turnstile.failed;
+  const unavailable = !turnstileSiteKey || turnstile.failed;
 
   return (
-    <div id="form-container" className="w-full max-w-[480px] mx-auto px-4 py-6">
+    <div className="w-full px-4 py-2">
       <div className="text-center mb-8">
-        <h1
-          id="form-heading"
-          className="text-[28px] sm:text-[32px] font-bold text-[#1d1d1f] tracking-tight mb-2 leading-tight"
-        >
-          Maklumat Anda
-        </h1>
-        <p className="text-[15px] sm:text-[16px] text-[#86868b] leading-relaxed max-w-[380px] mx-auto">
-          Lengkapkan maklumat anda untuk menebus kod baucar ZUS Coffee anda.
+        <h1 className="text-[28px] font-bold tracking-tight mb-2 leading-tight">Your Details</h1>
+        <p className="text-[15px] text-[#86868b] leading-relaxed max-w-[380px] mx-auto">
+          Fill in your details below. Your ZUS Coffee voucher will be sent to the email you provide.
         </p>
       </div>
 
-      <form onSubmit={handleSubmit} className="space-y-5">
-        {/* Full Name */}
-        <div>
-          <label htmlFor="full-name-input" className="block text-[13px] font-medium text-[#1d1d1f] mb-1.5">
-            Nama Penuh
-          </label>
-          <input
-            id="full-name-input"
-            type="text"
-            value={fullName}
-            onChange={(e) => {
-              setFullName(e.target.value);
-              if (fieldErrors.fullName) {
-                const next = { ...fieldErrors };
-                delete next.fullName;
-                setFieldErrors(next);
-              }
-            }}
-            placeholder="Ahmad Farhan"
-            className="w-full h-[48px] px-3.5 text-[15px] text-[#1d1d1f] bg-[#f5f5f7] border border-[#e5e5e7] rounded-[12px] focus:outline-none focus:bg-[#ffffff] focus:border-[#1d1d1f] transition"
-          />
-          {fieldErrors.fullName && (
-            <p className="mt-1 text-[12px] text-[#d70015] font-medium">{fieldErrors.fullName[0]}</p>
-          )}
-        </div>
+      <form onSubmit={handleSubmit} noValidate className="space-y-5">
+        {FIELDS.map((field) => {
+          const error = fieldErrors[field.name];
+          return (
+            <div key={field.name}>
+              <label htmlFor={`field-${field.name}`} className="block text-[13px] font-medium mb-1.5">
+                {field.label}
+              </label>
+              <input
+                id={`field-${field.name}`}
+                name={field.name}
+                type={field.type}
+                inputMode={field.inputMode}
+                autoComplete={field.autoComplete}
+                autoCapitalize={field.name === 'referralCode' ? 'characters' : undefined}
+                value={values[field.name]}
+                onChange={(e) => {
+                  setValues({ ...values, [field.name]: e.target.value });
+                  clearError(field.name);
+                }}
+                placeholder={field.placeholder}
+                aria-invalid={!!error}
+                aria-describedby={error ? `error-${field.name}` : undefined}
+                className={`w-full h-[48px] px-3.5 text-[16px] bg-[#f5f5f7] border rounded-[12px] focus:outline-none focus:bg-white focus:border-[#1d1d1f] transition ${
+                  error ? 'border-[#d70015]' : 'border-[#e5e5e7]'
+                }`}
+              />
+              {error && (
+                <p id={`error-${field.name}`} className="mt-1 text-[12px] text-[#d70015] font-medium">
+                  {error}
+                </p>
+              )}
+            </div>
+          );
+        })}
 
-        {/* Phone */}
-        <div>
-          <label htmlFor="phone-input" className="block text-[13px] font-medium text-[#1d1d1f] mb-1.5">
-            Nombor Telefon
-          </label>
-          <input
-            id="phone-input"
-            type="tel"
-            value={phone}
-            onChange={(e) => {
-              setPhone(e.target.value);
-              if (fieldErrors.phone) {
-                const next = { ...fieldErrors };
-                delete next.phone;
-                setFieldErrors(next);
-              }
-            }}
-            placeholder="0123456789"
-            className="w-full h-[48px] px-3.5 text-[15px] text-[#1d1d1f] bg-[#f5f5f7] border border-[#e5e5e7] rounded-[12px] focus:outline-none focus:bg-[#ffffff] focus:border-[#1d1d1f] transition"
-          />
-          {fieldErrors.phone && (
-            <p className="mt-1 text-[12px] text-[#d70015] font-medium">{fieldErrors.phone[0]}</p>
-          )}
-        </div>
-
-        {/* Email */}
-        <div>
-          <label htmlFor="email-input" className="block text-[13px] font-medium text-[#1d1d1f] mb-1.5">
-            Alamat E-mel
-          </label>
-          <input
-            id="email-input"
-            type="email"
-            value={email}
-            onChange={(e) => {
-              setEmail(e.target.value);
-              if (fieldErrors.email) {
-                const next = { ...fieldErrors };
-                delete next.email;
-                setFieldErrors(next);
-              }
-            }}
-            placeholder="nama@email.com"
-            className="w-full h-[48px] px-3.5 text-[15px] text-[#1d1d1f] bg-[#f5f5f7] border border-[#e5e5e7] rounded-[12px] focus:outline-none focus:bg-[#ffffff] focus:border-[#1d1d1f] transition"
-          />
-          {fieldErrors.email && (
-            <p className="mt-1 text-[12px] text-[#d70015] font-medium">{fieldErrors.email[0]}</p>
-          )}
-        </div>
-
-        {/* State / Outlet Preference */}
-        <div>
-          <label htmlFor="state-select" className="block text-[13px] font-medium text-[#1d1d1f] mb-1.5">
-            Negeri / Cawangan Pilihan
-          </label>
-          <select
-            id="state-select"
-            value={stateOrOutlet}
-            onChange={(e) => setStateOrOutlet(e.target.value)}
-            className="w-full h-[48px] px-3 text-[15px] text-[#1d1d1f] bg-[#f5f5f7] border border-[#e5e5e7] rounded-[12px] focus:outline-none focus:bg-[#ffffff] focus:border-[#1d1d1f] transition cursor-pointer"
-          >
-            <option value="Kuala Lumpur">Kuala Lumpur</option>
-            <option value="Selangor">Selangor</option>
-            <option value="Pulau Pinang">Pulau Pinang</option>
-            <option value="Johor">Johor</option>
-            <option value="Perak">Perak</option>
-            <option value="Melaka">Melaka</option>
-            <option value="Negeri Sembilan">Negeri Sembilan</option>
-            <option value="Kedah">Kedah</option>
-            <option value="Pahang">Pahang</option>
-            <option value="Kelantan">Kelantan</option>
-            <option value="Terengganu">Terengganu</option>
-            <option value="Sabah">Sabah</option>
-            <option value="Sarawak">Sarawak</option>
-            <option value="Perlis">Perlis</option>
-            <option value="Putrajaya">Putrajaya</option>
-          </select>
-        </div>
-
-        {/* Terms & Conditions Agreement */}
         <div className="pt-2">
-          <label className="flex items-start gap-3 cursor-pointer select-none">
+          <label className="flex items-start gap-3 cursor-pointer">
             <input
-              id="agree-terms-checkbox"
+              id="field-consent"
               type="checkbox"
-              checked={agreeTerms}
+              checked={consent}
               onChange={(e) => {
-                setAgreeTerms(e.target.checked);
-                if (fieldErrors.agreeTerms) {
-                  const next = { ...fieldErrors };
-                  delete next.agreeTerms;
-                  setFieldErrors(next);
-                }
+                setConsent(e.target.checked);
+                clearError('consent');
               }}
-              className="mt-1 h-4 w-4 rounded border-[#e5e5e7] text-[#1d1d1f] focus:ring-0 cursor-pointer"
+              aria-invalid={!!fieldErrors.consent}
+              aria-describedby={fieldErrors.consent ? 'error-consent' : undefined}
+              className="mt-0.5 h-5 w-5 shrink-0 accent-[#1d1d1f] cursor-pointer"
             />
-            <span className="text-[13px] text-[#86868b] leading-tight">
-              Saya bersetuju dengan Terma & Syarat kempen serta pemberian baucar ZUS Coffee ini.
+            <span className="text-[14px] leading-relaxed text-[#1d1d1f]">
+              I agree to the collection and use of my personal data for the purpose of this campaign,
+              as described in the Terms &amp; Conditions.
             </span>
           </label>
-          {fieldErrors.agreeTerms && (
-            <p className="mt-1 text-[12px] text-[#d70015] font-medium">{fieldErrors.agreeTerms[0]}</p>
+          {fieldErrors.consent && (
+            <p id="error-consent" className="mt-1 ml-8 text-[12px] text-[#d70015] font-medium">
+              {fieldErrors.consent}
+            </p>
           )}
         </div>
+
+        {/* Turnstile renders here; invisible unless a challenge is needed. */}
+        <div ref={turnstile.containerRef} className="flex justify-center empty:hidden" />
+
+        {unavailable && (
+          <p role="alert" className="text-center text-[13px] text-[#d70015]">
+            We couldn't load the security check. Please refresh the page, or turn off any content
+            blocker and try again.
+          </p>
+        )}
 
         {generalError && (
           <div
-            id="form-error-message"
             role="alert"
             className="p-3 bg-[#fff2f2] border border-[#ffcccc] rounded-[12px] text-center text-[14px] text-[#d70015] font-medium"
           >
@@ -310,12 +208,11 @@ export const FormScreen: React.FC<FormScreenProps> = ({
         )}
 
         <button
-          id="form-submit-btn"
           type="submit"
-          disabled={isLoading}
-          className="w-full h-[50px] bg-[#1d1d1f] hover:bg-[#333336] active:bg-[#000000] text-white text-[16px] font-medium rounded-[980px] transition disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center cursor-pointer pt-0"
+          disabled={isLoading || verifying || unavailable}
+          className="w-full h-[50px] bg-[#1d1d1f] hover:bg-[#333336] active:bg-black text-white text-[16px] font-medium rounded-[980px] transition disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer"
         >
-          {isLoading ? 'Memproses...' : 'Hantar & Tebus'}
+          {isLoading ? 'Submitting…' : verifying ? 'Verifying your browser…' : 'Submit'}
         </button>
       </form>
     </div>
