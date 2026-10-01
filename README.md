@@ -1,14 +1,15 @@
 # ZUS Coffee Voucher Campaign
 
-Intro & Terms → campaign form → thank-you. English, mobile first.
+Campaign image → Terms & Conditions → form → thank-you. English, mobile first.
 Vouchers are **not** issued by the app: the team emails them (via Zoho) within
 48 hours, using the submissions exported from Supabase.
 
 ```
-Zoho email blast (manual) ──CTA──▶  1. Intro image + T&C slides → "I Agree"
-                                     2. Form: Referral Code · Full Name · Phone · Email · Company
-                                        + data-consent checkbox → Submit
-                                     3. Thank you — "voucher within 48 hours"
+Zoho email blast (manual) ──CTA──▶  1. Campaign image → "Participate"
+                                     2. T&C slides (one per section) → "I Agree"
+                                     3. Form: Referral Code · Full Name · Phone · Email · Company
+                                        + data-consent tick + "I accept the T&C" tick → Submit
+                                     4. Thank you — "voucher within 48 hours"
                                      (Closed screen once CAMPAIGN_END_ISO passes)
 ```
 
@@ -90,8 +91,8 @@ Cloudflare dashboard (Workers → the worker → Settings → Domains & Routes).
 
 **5. Before the Zoho blast**, check on the live URL:
 - the form submits and a row appears in `submissions`;
-- `src/content/campaign.ts` has the real image and T&C, and `CONTENT_IS_DRAFT = false`
-  (otherwise a yellow "Draft content" banner shows on the intro page);
+- `src/content/campaign.ts` has the real image and `HERO_IMAGE.placeholder = false`
+  (otherwise a yellow "Draft" banner shows on the campaign page);
 - the closing date is right.
 
 ---
@@ -99,9 +100,13 @@ Cloudflare dashboard (Workers → the worker → Settings → Domains & Routes).
 ## Content
 
 All copy that marketing will want to change lives in **`src/content/campaign.ts`**:
-the hero image path, the T&C sections (one slide each — add or remove freely),
-and the draft flag. Put the real campaign image in `public/` and point
-`HERO_IMAGE.src` at it.
+the campaign image, the T&C (one slide per section — add or remove freely), and
+the Privacy Policy / PDPA Notice links used by the consent box. Put the real
+campaign image in `public/`, point `HERO_IMAGE.src` at it and set
+`placeholder: false`.
+
+The T&C is published verbatim from `Terms_and_Conditions_for_Zus_Redemption_LEGAL280926.docx`
+(tracked changes accepted). Replace the clause text there when legal issues a new version.
 
 ---
 

@@ -1,11 +1,12 @@
 import React, { useEffect, useState } from 'react';
 import { Header } from './components/Header.js';
-import { IntroTerms } from './components/IntroTerms.js';
+import { Campaign } from './components/Campaign.js';
+import { Terms } from './components/Terms.js';
 import { FormScreen } from './components/FormScreen.js';
 import { ThankYou } from './components/ThankYou.js';
 import { Closed } from './components/Closed.js';
 
-type Step = 'loading' | 'intro' | 'form' | 'thanks' | 'closed';
+type Step = 'loading' | 'campaign' | 'terms' | 'form' | 'thanks' | 'closed';
 
 interface Config {
   closed: boolean;
@@ -13,13 +14,15 @@ interface Config {
 }
 
 /**
- * Intro & Terms → Form → Thank you. Steps live in memory and in history state,
- * so the phone's back button moves between them; a reload starts at the intro.
+ * Campaign → Terms → Form → Thank you. Steps live in memory and in history
+ * state, so the phone's back button moves between them; a reload starts at the
+ * campaign page.
  */
 export default function App() {
   const [step, setStep] = useState<Step>('loading');
   const [config, setConfig] = useState<Config>({ closed: false, turnstileSiteKey: null });
   const [submittedEmail, setSubmittedEmail] = useState('');
+  const [termsRead, setTermsRead] = useState(false);
 
   const go = (next: Step) => {
     setStep(next);
@@ -32,19 +35,19 @@ export default function App() {
       .then((res) => (res.ok ? res.json() : Promise.reject(new Error(String(res.status)))))
       .then((c: Config) => {
         setConfig(c);
-        setStep(c.closed ? 'closed' : 'intro');
+        setStep(c.closed ? 'closed' : 'campaign');
       })
       .catch((err) => {
         // The form shows its own "security check unavailable" message.
         console.error('Failed to load config:', err);
-        setStep('intro');
+        setStep('campaign');
       });
 
-    window.history.replaceState({ step: 'intro' }, '');
+    window.history.replaceState({ step: 'campaign' }, '');
     const onPop = (e: PopStateEvent) => {
       const s = e.state?.step as Step | undefined;
-      // Back from the form → intro. Back from thank-you → a fresh, empty form.
-      setStep(s === 'form' ? 'form' : 'intro');
+      // Back from thank-you → a fresh, empty form; anything else steps back normally.
+      setStep(s === 'terms' || s === 'form' ? s : 'campaign');
     };
     window.addEventListener('popstate', onPop);
     return () => window.removeEventListener('popstate', onPop);
@@ -58,7 +61,16 @@ export default function App() {
           {step === 'loading' && (
             <p className="py-24 text-center text-[14px] text-[#86868b] animate-pulse">Loading…</p>
           )}
-          {step === 'intro' && <IntroTerms onAgree={() => go('form')} />}
+          {step === 'campaign' && <Campaign onParticipate={() => go('terms')} />}
+          {step === 'terms' && (
+            <Terms
+              alreadyRead={termsRead}
+              onAgree={() => {
+                setTermsRead(true);
+                go('form');
+              }}
+            />
+          )}
           {step === 'form' && (
             <FormScreen
               turnstileSiteKey={config.turnstileSiteKey}
