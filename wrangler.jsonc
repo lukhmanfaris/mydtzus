@@ -1,6 +1,6 @@
 {
   "$schema": "node_modules/wrangler/config-schema.json",
-  "name": "zus-voucher-campaign",
+  "name": "mydtzus",
   "main": "worker/index.ts",
   "compatibility_date": "2026-09-15",
   "compatibility_flags": ["nodejs_compat"],
@@ -28,8 +28,8 @@
   // Local overrides live in .dev.vars (see .dev.vars.example).
   "vars": {
     "DATA_SOURCE": "supabase",
-    "SUPABASE_URL": "",
-    "TURNSTILE_SITE_KEY": "",
+    "SUPABASE_URL": "https://pkvbdhzhroncqnaznqgo.supabase.co",
+    "TURNSTILE_SITE_KEY": "0x4AAAAAAFLQFwx61r47xd8E",
     // e.g. "2026-12-31T23:59:59+08:00". Blank = no closing date.
     "CAMPAIGN_END_ISO": ""
   }
