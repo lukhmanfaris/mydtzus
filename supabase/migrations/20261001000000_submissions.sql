@@ -43,6 +43,10 @@ create index submissions_submitted_at_idx on public.submissions (submitted_at);
 alter table public.submissions enable row level security;
 revoke all on table public.submissions from anon, authenticated;
 
+-- The Worker writes with the service role. Granted explicitly so this works
+-- when the project has "Automatically expose new tables" turned off.
+grant select, insert, update, delete on table public.submissions to service_role;
+
 -- ─────────────────────────────────────────────────────────────────────────────
 -- Export view. Duplicates are allowed in; this view flags them so the team
 -- can filter before sending vouchers.
@@ -72,3 +76,4 @@ select
 from public.submissions s;
 
 revoke all on table public.submissions_export from anon, authenticated;
+grant select on table public.submissions_export to service_role;
