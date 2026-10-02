@@ -15,7 +15,6 @@ export interface SubmissionRecord {
   email: string;
   company_name: string;
   terms_accepted_at: string;
-  consent_at: string;
 }
 
 export interface DataAdapter {

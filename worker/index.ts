@@ -120,9 +120,8 @@ app.post('/api/submit', async (c) => {
       phone: data.phone,
       email: data.email,
       company_name: data.companyName,
-      // Both are literal `true` in the schema; the server stamps the time.
+      // `termsAccepted` is literal `true` in the schema; the server stamps the time.
       terms_accepted_at: now,
-      consent_at: now,
     });
   } catch (err) {
     console.error('Submission insert failed:', err);

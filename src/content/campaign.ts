@@ -21,12 +21,7 @@ export const HERO_IMAGE = {
   placeholder: false,
 };
 
-/** Official MYDATA documents linked from the form's consent box. */
-export const PRIVACY_POLICY_URL = 'https://www.mydata-ssm.com.my/policy';
-export const PDPA_NOTICE_URL = 'https://www.mydata-ssm.com.my/pdpa';
-
 export const TERMS_TITLE = 'Terms & Conditions';
-export const TERMS_SUBTITLE = 'ZUS Coffee Voucher Redemption Programme';
 
 export interface TermsSection {
   title: string;
@@ -35,11 +30,11 @@ export interface TermsSection {
 }
 
 /**
- * Terms & Conditions — Terms_and_Conditions_for_Zus_Redemption_LEGAL280926.docx,
+ * Campaign T&C — Terms_and_Conditions_for_Zus_Redemption_LEGAL280926.docx,
  * tracked changes accepted, published verbatim (including clause 3.6).
- * One slide per section; the slider follows the array length.
+ * PENDING final legal approval.
  */
-export const TERMS_SECTIONS: TermsSection[] = [
+const CAMPAIGN_TERMS: TermsSection[] = [
   {
     title: 'Eligibility',
     clauses: [
@@ -85,6 +80,53 @@ export const TERMS_SECTIONS: TermsSection[] = [
     clauses: [
       'MYDATASSM reserves the right to amend, suspend or terminate the Programme or amend any of these Terms & Conditions at any time where reasonably necessary.',
       'MYDATASSM\'s decision on all matters relating to the Prorgramme shall be final and conclusive.',
+    ],
+  },
+];
+
+export interface TermsDocument {
+  /** Short label for the tab. */
+  tab: string;
+  title: string;
+  subtitle?: string;
+  /** One slide per section, clauses numbered 1.1, 1.2 … within the document. */
+  sections: TermsSection[];
+  /** Stand-in text; shows a draft banner on the T&C page while any remain. */
+  placeholder?: boolean;
+}
+
+/**
+ * The documents on page 2, in tab order. All must be read to the last section
+ * before "I Agree" unlocks; one agreement covers all of them.
+ * Which documents these are is still to be confirmed by legal.
+ */
+export const TERMS_DOCUMENTS: TermsDocument[] = [
+  {
+    tab: 'Campaign T&C',
+    title: 'Terms & Conditions',
+    subtitle: 'ZUS Coffee Voucher Redemption Programme',
+    sections: CAMPAIGN_TERMS,
+  },
+  {
+    tab: 'Document 2',
+    title: 'Document 2 — title pending',
+    placeholder: true,
+    sections: [
+      {
+        title: 'Pending legal approval',
+        clauses: ['The final wording of this document will be supplied by legal.'],
+      },
+    ],
+  },
+  {
+    tab: 'Document 3',
+    title: 'Document 3 — title pending',
+    placeholder: true,
+    sections: [
+      {
+        title: 'Pending legal approval',
+        clauses: ['The final wording of this document will be supplied by legal.'],
+      },
     ],
   },
 ];

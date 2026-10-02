@@ -10,8 +10,9 @@ import {
  * The campaign form contract. Used by the browser for instant feedback and by
  * the Worker as the authoritative check — one schema, so the two never drift.
  *
- * Field set (confirmed): Referral Code · Full Name · Phone · Email · Company Name,
- * plus two required tick boxes: data-collection consent and T&C acceptance.
+ * Field set (confirmed): Referral Code · Full Name · Phone · Email · Company Name.
+ * `termsAccepted` records the single "I Agree" covering every document on the
+ * T&C page; the form itself has no tick boxes.
  */
 export const SubmissionSchema = z.object({
   /** Free text — a shared code we hand out, not validated against a list. */
@@ -71,14 +72,9 @@ export const SubmissionSchema = z.object({
         .max(150, { message: 'Company name is too long.' })
     ),
 
-  /** "I accept the Terms and Conditions." tick box on the form. */
+  /** Set by "I Agree" on the T&C page. */
   termsAccepted: z.literal(true, {
-    message: 'Please accept the Terms and Conditions to continue.',
-  }),
-
-  /** Data-collection consent tick box on the form. */
-  consent: z.literal(true, {
-    message: 'Please agree to the data collection consent to continue.',
+    message: 'Please read and agree to the Terms & Conditions first.',
   }),
 });
 
