@@ -4,19 +4,20 @@
 
 /**
  * Campaign visual on the first page — one image carrying all the branding
- * (MYDATA × ZUS logos, headline, artwork). Shown at 4:5 portrait, up to 672px
+ * (MYDATA × ZUS logos, headline, artwork). Shown as a square, up to 672px
  * wide on desktop/tablet and full width on phones.
  *
- * Spec for replacements: 4:5, at least 1440 × 1800 px, transparent or white
- * background, logos/text at least 60px in from every edge. The current file is
- * the designer's original PNG, used as supplied.
+ * Spec for replacements: 1:1 square, at least 1440 × 1440 px, transparent or
+ * white background, logos/text at least 60px in from every edge. The current
+ * file is the designer's original PNG, cropped losslessly to a square by
+ * removing only empty transparent space above and below the artwork.
  */
 export const HERO_IMAGE = {
   src: '/campaign-visual.png',
   // The words in the artwork, for screen readers and if the image fails to load.
   alt: 'MYDATA × ZUS Coffee — Your Free ZUS Drink Awaits. Fueled for the Next Lap, Brewtiful Rewards by MYDATA.',
   width: 4500,
-  height: 5626,
+  height: 4500,
   /** True only while a stand-in image is used; shows a "Draft" banner. */
   placeholder: false,
 };

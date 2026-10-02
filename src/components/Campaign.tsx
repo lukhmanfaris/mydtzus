@@ -6,11 +6,11 @@ interface CampaignProps {
 }
 
 /**
- * Width of the 4:5 visual: the full column on phones, 672px at most on
- * desktop/tablet, and never so tall that the Participate button drops below
- * the fold (the 220px covers the button, spacing and footer).
+ * Width (= height) of the square visual: the full column on phones, 672px at
+ * most on desktop/tablet, and never so tall that the Participate button drops
+ * below the fold (the 220px covers the button, spacing and footer).
  */
-const VISUAL_WIDTH = 'min(100%, 672px, max(240px, calc((100svh - 220px) * 0.8)))';
+const VISUAL_WIDTH = 'min(100%, 672px, max(240px, calc(100svh - 220px)))';
 
 /** Page 1 — the campaign visual (which carries the branding) and the call to action. */
 export const Campaign: React.FC<CampaignProps> = ({ onParticipate }) => (
@@ -27,13 +27,13 @@ export const Campaign: React.FC<CampaignProps> = ({ onParticipate }) => (
         alt={HERO_IMAGE.alt}
         width={HERO_IMAGE.width}
         height={HERO_IMAGE.height}
-        className="w-full aspect-[4/5] rounded-[20px] object-cover"
+        className="w-full aspect-square rounded-[20px] object-cover"
       />
 
       <button
         type="button"
         onClick={onParticipate}
-        className="w-full h-[52px] bg-[#e22000] hover:bg-[#c41c00] active:bg-[#a81800] text-white text-[17px] font-semibold rounded-[980px] transition cursor-pointer focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#e22000]"
+        className="w-1/2 h-[52px] bg-[#e22000] hover:bg-[#c41c00] active:bg-[#a81800] text-white text-[17px] font-semibold rounded-[980px] transition cursor-pointer focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#e22000]"
       >
         Participate
       </button>
