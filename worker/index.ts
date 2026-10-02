@@ -18,6 +18,13 @@ interface Env extends DataEnv {
 
 const app = new Hono<{ Bindings: Env }>();
 
+/**
+ * The same email + phone within this window is treated as a repeat of the
+ * same entry (double tap, back-and-resubmit) and not stored again. Genuine
+ * repeats outside it are kept for the team to review in submissions_export.
+ */
+const DUPLICATE_WINDOW_MS = 10 * 60 * 1000;
+
 app.use('/api/*', secureHeaders());
 
 /**
@@ -98,9 +105,16 @@ app.post('/api/submit', async (c) => {
 
   const data = parsed.data;
   const now = new Date().toISOString();
+  const store = getDataAdapter(c.env);
 
   try {
-    await getDataAdapter(c.env).insertSubmission({
+    const since = new Date(Date.now() - DUPLICATE_WINDOW_MS).toISOString();
+    if (await store.hasRecentSubmission(data.email, data.phone, since)) {
+      // Same answer as a fresh entry: the person sees the thank-you page either way.
+      return c.json({ ok: true }, 201);
+    }
+
+    await store.insertSubmission({
       referral_code: data.referralCode,
       full_name: data.fullName,
       phone: data.phone,
@@ -120,4 +134,20 @@ app.post('/api/submit', async (c) => {
 
 app.all('/api/*', (c) => c.json({ code: 'NOT_FOUND', error: 'Not found.' }, 404));
 
-export default app;
+export default {
+  fetch: app.fetch,
+
+  /**
+   * Daily cron (see `triggers` in wrangler.jsonc). Supabase pauses free
+   * projects after a period without activity; one tiny read a day prevents
+   * the form from failing because the database went to sleep.
+   */
+  async scheduled(_event, env, ctx) {
+    ctx.waitUntil(
+      getDataAdapter(env)
+        .ping()
+        .then(() => console.log('Keep-alive ping OK'))
+        .catch((err) => console.error('Keep-alive ping failed:', err))
+    );
+  },
+} satisfies ExportedHandler<Env>;

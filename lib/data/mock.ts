@@ -14,4 +14,12 @@ export const mockAdapter: DataAdapter = {
     console.log(`[mock] submission #${rows.length}`, JSON.stringify(row));
     return { id: row.id };
   },
+
+  async hasRecentSubmission(email, phone, sinceIso) {
+    return rows.some((r) => r.email === email && r.phone === phone && r.submitted_at >= sinceIso);
+  },
+
+  async ping() {
+    console.log(`[mock] ping (${rows.length} rows)`);
+  },
 };

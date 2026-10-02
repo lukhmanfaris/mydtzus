@@ -20,6 +20,10 @@ export interface SubmissionRecord {
 
 export interface DataAdapter {
   insertSubmission(record: SubmissionRecord): Promise<{ id: string }>;
+  /** True if a submission with this email AND phone arrived at or after `sinceIso`. */
+  hasRecentSubmission(email: string, phone: string, sinceIso: string): Promise<boolean>;
+  /** Cheap read that counts as database activity (keeps a free Supabase project awake). */
+  ping(): Promise<void>;
 }
 
 /** The subset of the Worker environment the data layer reads. */
