@@ -8,6 +8,17 @@ import { Closed } from './components/Closed.js';
 
 type Step = 'loading' | 'campaign' | 'terms' | 'form' | 'thanks' | 'closed';
 
+/** Pages that show the ZUS COFFEE logo bar. The campaign page carries its own
+ *  branding inside the campaign visual. Decided page by page. */
+const SHOW_LOGO: Record<Step, boolean> = {
+  loading: false,
+  campaign: false,
+  terms: true,
+  form: true,
+  thanks: true,
+  closed: true,
+};
+
 interface Config {
   closed: boolean;
   turnstileSiteKey: string | null;
@@ -55,9 +66,14 @@ export default function App() {
 
   return (
     <div className="min-h-screen bg-white text-[#1d1d1f] flex flex-col items-center font-sans">
-      <div className="w-full max-w-[480px] flex flex-col flex-1 pb-12">
-        <Header />
-        <main className="w-full flex-1">
+      {/* The campaign page is wider so its visual can reach 672px on desktop. */}
+      <div
+        className={`w-full flex flex-col flex-1 ${
+          step === 'campaign' ? 'max-w-[704px]' : 'max-w-[480px] pb-12'
+        }`}
+      >
+        {SHOW_LOGO[step] && <Header />}
+        <main className="w-full flex-1 flex flex-col">
           {step === 'loading' && (
             <p className="py-24 text-center text-[14px] text-[#86868b] animate-pulse">Loading…</p>
           )}
