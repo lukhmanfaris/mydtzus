@@ -1,5 +1,6 @@
 import React, { useLayoutEffect, useRef, useState } from 'react';
 import { TERMS_DOCUMENTS, TERMS_TITLE, type TermsDocument } from '../content/campaign.js';
+import { PrimaryButton } from './PrimaryButton.js';
 
 interface TermsProps {
   /** All documents already read earlier, e.g. coming back from the form. */
@@ -76,14 +77,9 @@ export const Terms: React.FC<TermsProps> = ({ alreadyRead, onAgree }) => {
         />
       </div>
 
-      <button
-        type="button"
-        onClick={onAgree}
-        disabled={!allRead}
-        className="mt-8 w-full h-[50px] bg-[#1d1d1f] hover:bg-[#333336] active:bg-black text-white text-[16px] font-medium rounded-[980px] transition disabled:opacity-40 disabled:cursor-not-allowed cursor-pointer"
-      >
+      <PrimaryButton onClick={onAgree} disabled={!allRead} className="mt-8">
         I Agree
-      </button>
+      </PrimaryButton>
       <p className="mt-3 text-center text-[13px] text-[#86868b]" aria-live="polite">
         {allRead
           ? `By tapping I Agree, you confirm you have read and accept all ${total} documents.`
