@@ -31,7 +31,7 @@ export const Campaign: React.FC<CampaignProps> = ({ onParticipate }) => (
         className="w-full aspect-square rounded-[20px] object-cover"
       />
 
-      <PrimaryButton onClick={onParticipate}>I want my coffee!</PrimaryButton>
+      <PrimaryButton onClick={onParticipate}>Let's Go!</PrimaryButton>
     </div>
   </div>
 );
