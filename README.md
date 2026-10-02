@@ -32,12 +32,22 @@ The React app is served by Workers Assets; only `/api/*` runs the Worker.
 ### What `POST /api/submit` does, in order
 
 1. **Closing date** — after `CAMPAIGN_END_ISO` → `410`, UI shows "campaign has ended".
-2. **Rate limit** — 5 submissions per minute per IP (`CF-Connecting-IP`, set by Cloudflare's edge and not spoofable) → `429`.
+2. **Rate limit** — 10 requests per minute per IP (`CF-Connecting-IP`, set by Cloudflare's edge and not spoofable) → `429`.
 3. **Validation** — Zod, with phone normalised to `60XXXXXXXXX`, email lowercased, referral code uppercased → `400` with per-field messages.
 4. **Bot check** — Turnstile token verified with Cloudflare → `403`. Fails closed if Cloudflare is unreachable or the secret is missing.
-5. **Insert** into `submissions` with server-stamped `terms_accepted_at` / `consent_at` → `201`.
+5. **Repeat guard** — the same email **and** phone within 10 minutes (double tap,
+   back-and-resubmit) gets `201` but is not stored again.
+6. **Insert** into `submissions` with server-stamped `terms_accepted_at` / `consent_at` → `201`.
 
-Duplicates are allowed in by design; the export view flags them.
+Repeats outside the 10-minute window are allowed in by design; the export view
+flags them.
+
+### Daily keep-alive
+
+Supabase pauses free projects after a stretch with no activity, which would make
+every submission fail. A Cloudflare cron (`triggers.crons` in `wrangler.jsonc`,
+09:00 MYT daily) runs one tiny read against `submissions`. Check it in the
+Cloudflare dashboard → Workers → `mydtzus` → Logs (look for `Keep-alive ping OK`).
 
 ---
 
@@ -86,8 +96,10 @@ npx wrangler secret put SUPABASE_SERVICE_ROLE_KEY
 npx wrangler secret put TURNSTILE_SECRET_KEY
 ```
 
-**4. Deploy** — `npm run deploy`, then attach your custom domain in the
-Cloudflare dashboard (Workers → the worker → Settings → Domains & Routes).
+**4. Deploy** — merge to `main` and GitHub Actions deploys it (see
+[Auto-deploy](#auto-deploy)). `npm run deploy` from your machine still works.
+A custom domain can be attached in the Cloudflare dashboard (Workers → the
+worker → Settings → Domains & Routes).
 
 **5. Before the Zoho blast**, check on the live URL:
 - the form submits and a row appears in `submissions`;
@@ -144,6 +156,24 @@ where id in (...);            -- or by email list
   skips `REJECTED`, and is safe to re-run. Instructions are at the top of the file.
 
 Either way, no change to the app or its screens.
+
+---
+
+## Auto-deploy
+
+`.github/workflows/deploy.yml` runs on every push to `main` (and on demand from
+the Actions tab): `npm ci` → type-check → build → `wrangler deploy`. A failed
+type-check or build stops the deploy, so the live site keeps the last good version.
+
+One-time setup:
+1. Cloudflare dashboard → **My Profile → API Tokens → Create Token** → template
+   **Edit Cloudflare Workers** → account: *Mydatamarcomm@gmail.com's Account*,
+   zone: *All zones* → Create, copy the token.
+2. GitHub → repo **Settings → Secrets and variables → Actions → New repository
+   secret** → name `CLOUDFLARE_API_TOKEN`, value: the token.
+
+The account is set by `account_id` in `wrangler.jsonc`. Worker secrets (Supabase,
+Turnstile) live in Cloudflare and are untouched by deploys.
 
 ---
 
