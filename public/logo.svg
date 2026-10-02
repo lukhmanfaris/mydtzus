@@ -1,8 +1,0 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 48" fill="none">
-  <!-- Minimalist ZUS Coffee & Campaign Emblem -->
-  <rect x="0" y="4" width="40" height="40" rx="10" fill="#1d1d1f"/>
-  <path d="M12 16h16l-13 14h15" stroke="#ffffff" stroke-width="2.75" stroke-linecap="round" stroke-linejoin="round"/>
-  <!-- Typography -->
-  <text x="52" y="25" fill="#1d1d1f" font-family="-apple-system, BlinkMacSystemFont, 'SF Pro Display', sans-serif" font-size="16" font-weight="700" letter-spacing="0.08em">ZUS COFFEE</text>
-  <text x="52" y="38" fill="#86868b" font-family="-apple-system, BlinkMacSystemFont, 'SF Pro Display', sans-serif" font-size="10" font-weight="500" letter-spacing="0.05em">CAMPAIGN REWARDS</text>
-</svg>

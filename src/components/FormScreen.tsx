@@ -6,6 +6,7 @@ import {
   type SubmissionInput,
 } from '../../lib/validation/form.js';
 import { useTurnstile } from '../useTurnstile.js';
+import { PrimaryButton } from './PrimaryButton.js';
 
 interface FormScreenProps {
   turnstileSiteKey: string | null;
@@ -182,13 +183,9 @@ export const FormScreen: React.FC<FormScreenProps> = ({ turnstileSiteKey, onSubm
           </div>
         )}
 
-        <button
-          type="submit"
-          disabled={isLoading || verifying || unavailable}
-          className="w-full h-[50px] bg-[#1d1d1f] hover:bg-[#333336] active:bg-black text-white text-[16px] font-medium rounded-[980px] transition disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer"
-        >
-          {isLoading ? 'Submitting…' : verifying ? 'Verifying your browser…' : 'Submit'}
-        </button>
+        <PrimaryButton type="submit" disabled={isLoading || verifying || unavailable}>
+          {isLoading ? 'Submitting…' : verifying ? 'Verifying…' : 'Submit'}
+        </PrimaryButton>
       </form>
     </div>
   );

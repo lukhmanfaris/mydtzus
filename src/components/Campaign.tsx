@@ -1,5 +1,6 @@
 import React from 'react';
 import { HERO_IMAGE } from '../content/campaign.js';
+import { PrimaryButton } from './PrimaryButton.js';
 
 interface CampaignProps {
   onParticipate: () => void;
@@ -30,13 +31,7 @@ export const Campaign: React.FC<CampaignProps> = ({ onParticipate }) => (
         className="w-full aspect-square rounded-[20px] object-cover"
       />
 
-      <button
-        type="button"
-        onClick={onParticipate}
-        className="w-1/2 h-[52px] bg-[#e22000] hover:bg-[#c41c00] active:bg-[#a81800] text-white text-[17px] font-semibold rounded-[980px] transition cursor-pointer focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#e22000]"
-      >
-        Participate
-      </button>
+      <PrimaryButton onClick={onParticipate}>Participate</PrimaryButton>
     </div>
   </div>
 );
