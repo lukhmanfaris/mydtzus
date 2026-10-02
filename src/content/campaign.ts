@@ -3,12 +3,22 @@
  */
 
 /**
- * Campaign image on the first page. Drop the real file into /public, update
- * `src`, and set `placeholder: false` to remove the draft banner.
+ * Campaign visual on the first page — one image carrying all the branding
+ * (logo, headline, artwork). Shown at 4:5 portrait, up to 672px wide on
+ * desktop/tablet and full width on phones.
+ *
+ * Supply: 1440 × 1800 px (4:5), JPG or WebP, ideally under 500 KB.
+ * Minimum 1080 × 1350 px. Corners are rounded by 20px on screen, so keep
+ * text and logos at least 60px in from every edge.
+ *
+ * Drop the file into /public, update `src`, and set `placeholder: false` to
+ * remove the draft banner.
  */
 export const HERO_IMAGE = {
   src: '/campaign-hero.svg',
   alt: 'ZUS Coffee Voucher Redemption Programme',
+  width: 1440,
+  height: 1800,
   placeholder: true,
 };
 
