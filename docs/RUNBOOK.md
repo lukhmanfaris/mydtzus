@@ -6,9 +6,10 @@ Vouchers are **not** issued by the app: the team emails them (via Zoho) within
 
 ```
 Zoho email blast (manual) ──CTA──▶  1. Campaign image → "Participate"
-                                     2. T&C slides (one per section) → "I Agree"
+                                     2. T&C: 3 documents in tabs, each as slides; one "I Agree"
+                                        (unlocks once every document is read to the end)
                                      3. Form: Referral Code · Full Name · Phone · Email · Company
-                                        + data-consent tick + "I accept the T&C" tick → Submit
+                                        → Submit (no tick boxes)
                                      4. Thank you — "voucher within 48 hours"
                                      (Closed screen once CAMPAIGN_END_ISO passes)
 ```
@@ -37,7 +38,7 @@ The React app is served by Workers Assets; only `/api/*` runs the Worker.
 4. **Bot check** — Turnstile token verified with Cloudflare → `403`. Fails closed if Cloudflare is unreachable or the secret is missing.
 5. **Repeat guard** — the same email **and** phone within 10 minutes (double tap,
    back-and-resubmit) gets `201` but is not stored again.
-6. **Insert** into `submissions` with server-stamped `terms_accepted_at` / `consent_at` → `201`.
+6. **Insert** into `submissions` with a server-stamped `terms_accepted_at` → `201`.
 
 Repeats outside the 10-minute window are allowed in by design; the export view
 flags them.
@@ -74,8 +75,12 @@ npm run preview   # serve the production build locally
 
 ## Go live
 
-**1. Supabase** — create a project, then run
-`supabase/migrations/20261001000000_submissions.sql` in the SQL Editor.
+**1. Supabase** — create a project, then run every file in
+`supabase/migrations/` in the SQL Editor, oldest first.
+
+On the existing live project, `20261002000000_remove_consent_at.sql` is run in
+two steps around the deploy so submissions never fail: **STEP 1** before merging
+the change that stops sending `consent_at`, **STEP 2** once that deploy is live.
 
 **2. Turnstile** — Cloudflare dashboard → Turnstile → add a widget for your
 domain (mode: *Managed*). Note the site key and secret key.
@@ -112,13 +117,15 @@ worker → Settings → Domains & Routes).
 ## Content
 
 All copy that marketing will want to change lives in **`src/content/campaign.ts`**:
-the campaign image, the T&C (one slide per section — add or remove freely), and
-the Privacy Policy / PDPA Notice links used by the consent box. Put the real
+the campaign image and the T&C documents (`TERMS_DOCUMENTS`: one tab per
+document, one slide per section — add or remove freely). Documents marked
+`placeholder: true` show a draft banner on the T&C page. Put the real
 campaign image in `public/`, point `HERO_IMAGE.src` at it and set
 `placeholder: false`.
 
-The T&C is published verbatim from `Terms_and_Conditions_for_Zus_Redemption_LEGAL280926.docx`
-(tracked changes accepted). Replace the clause text there when legal issues a new version.
+Document 1 is published verbatim from `Terms_and_Conditions_for_Zus_Redemption_LEGAL280926.docx`
+(tracked changes accepted). Documents 2 and 3 are placeholders. All three are
+pending legal approval; replace the text there when legal issues the final versions.
 
 ---
 

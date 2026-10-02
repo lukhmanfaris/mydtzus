@@ -1,24 +1,112 @@
 import React, { useLayoutEffect, useRef, useState } from 'react';
-import { TERMS_SECTIONS, TERMS_SUBTITLE, TERMS_TITLE } from '../content/campaign.js';
+import { TERMS_DOCUMENTS, TERMS_TITLE, type TermsDocument } from '../content/campaign.js';
 
 interface TermsProps {
-  /** Already reached the last slide earlier, e.g. coming back from the form. */
+  /** All documents already read earlier, e.g. coming back from the form. */
   alreadyRead: boolean;
   onAgree: () => void;
 }
 
 /**
- * Page 2 — the T&C as swipeable slides, one per section. "I Agree" unlocks
- * only once the reader has reached the last slide.
+ * Page 2 — every T&C document, one tab each, each document's sections as
+ * swipeable slides. A single "I Agree" covers all documents and unlocks only
+ * once each one has been read to its last section.
  */
 export const Terms: React.FC<TermsProps> = ({ alreadyRead, onAgree }) => {
+  const total = TERMS_DOCUMENTS.length;
+  const [active, setActive] = useState(0);
+  // A document counts as read once its last section has been on screen (a
+  // one-section document as soon as its tab is opened).
+  const [read, setRead] = useState<boolean[]>(() => TERMS_DOCUMENTS.map(() => alreadyRead));
+  const allRead = read.every(Boolean);
+  const unread = read.filter((r) => !r).length;
+  const hasPlaceholder = TERMS_DOCUMENTS.some((doc) => doc.placeholder);
+
+  const markRead = (i: number) =>
+    setRead((prev) => (prev[i] ? prev : prev.map((r, j) => (j === i ? true : r))));
+
+  return (
+    <section aria-labelledby="terms-heading" className="w-full px-4 py-2">
+      {hasPlaceholder && (
+        <p className="mb-4 rounded-[12px] border border-[#f5d38a] bg-[#fff8e6] px-3 py-2 text-center text-[12px] font-medium text-[#8a5a00]">
+          Draft — some documents are placeholders pending legal approval.
+        </p>
+      )}
+
+      <h1 id="terms-heading" className="text-[26px] font-bold tracking-tight text-center leading-tight">
+        {TERMS_TITLE}
+      </h1>
+      <p className="mt-1 mb-5 text-center text-[13px] text-[#86868b]">
+        Please read all {total} documents. Swipe or tap Next within each one.
+      </p>
+
+      <div role="tablist" aria-label="Documents" className="mb-4 flex gap-1 rounded-[14px] bg-[#f5f5f7] p-1">
+        {TERMS_DOCUMENTS.map((doc, i) => (
+          <button
+            key={doc.tab}
+            type="button"
+            role="tab"
+            id={`terms-tab-${i}`}
+            aria-selected={i === active}
+            aria-controls={`terms-panel-${i}`}
+            onClick={() => setActive(i)}
+            className={`flex-1 min-w-0 rounded-[10px] px-2 py-2 text-[13px] font-medium leading-tight transition cursor-pointer ${
+              i === active ? 'bg-white shadow-sm text-[#1d1d1f]' : 'text-[#6e6e73]'
+            }`}
+          >
+            <span className="block">
+              {read[i] && (
+                <span aria-label="read" className="mr-1 text-[#1f8a3b]">
+                  ✓
+                </span>
+              )}
+              {doc.tab}
+            </span>
+          </button>
+        ))}
+      </div>
+
+      <div role="tabpanel" id={`terms-panel-${active}`} aria-labelledby={`terms-tab-${active}`}>
+        {/* Remount per document so each starts at its first section. */}
+        <DocumentSlides
+          key={active}
+          doc={TERMS_DOCUMENTS[active]}
+          onReachedEnd={() => markRead(active)}
+          onNextDocument={active < total - 1 ? () => setActive(active + 1) : undefined}
+        />
+      </div>
+
+      <button
+        type="button"
+        onClick={onAgree}
+        disabled={!allRead}
+        className="mt-8 w-full h-[50px] bg-[#1d1d1f] hover:bg-[#333336] active:bg-black text-white text-[16px] font-medium rounded-[980px] transition disabled:opacity-40 disabled:cursor-not-allowed cursor-pointer"
+      >
+        I Agree
+      </button>
+      <p className="mt-3 text-center text-[13px] text-[#86868b]" aria-live="polite">
+        {allRead
+          ? `By tapping I Agree, you confirm you have read and accept all ${total} documents.`
+          : `Read every document to the end to continue (${unread} left).`}
+      </p>
+    </section>
+  );
+};
+
+interface DocumentSlidesProps {
+  doc: TermsDocument;
+  onReachedEnd: () => void;
+  /** Present when another document follows; shown on the last slide. */
+  onNextDocument?: () => void;
+}
+
+const DocumentSlides: React.FC<DocumentSlidesProps> = ({ doc, onReachedEnd, onNextDocument }) => {
   const trackRef = useRef<HTMLDivElement>(null);
   const slideRefs = useRef<Array<HTMLElement | null>>([]);
   const [index, setIndex] = useState(0);
   const [height, setHeight] = useState<number | undefined>(undefined);
-  const [reachedEnd, setReachedEnd] = useState(alreadyRead || TERMS_SECTIONS.length <= 1);
 
-  const total = TERMS_SECTIONS.length;
+  const total = doc.sections.length;
   const isLast = index === total - 1;
 
   // Size the track to the slide in view, so a short section doesn't leave the
@@ -36,6 +124,7 @@ export const Terms: React.FC<TermsProps> = ({ alreadyRead, onAgree }) => {
     const top = trackRef.current?.getBoundingClientRect().top ?? 0;
     if (top < 0) window.scrollBy({ top: top - 16, behavior: 'smooth' });
 
+    if (index === total - 1) onReachedEnd();
     return () => observer.disconnect();
   }, [index]);
 
@@ -52,29 +141,23 @@ export const Terms: React.FC<TermsProps> = ({ alreadyRead, onAgree }) => {
     if (!track || track.clientWidth === 0) return;
     const i = Math.round(track.scrollLeft / track.clientWidth);
     if (i !== index) setIndex(i);
-    if (i === total - 1) setReachedEnd(true);
   };
 
   return (
-    <section aria-labelledby="terms-heading" className="w-full px-4 py-2">
-      <h1 id="terms-heading" className="text-[26px] font-bold tracking-tight text-center leading-tight">
-        {TERMS_TITLE}
-      </h1>
-      <p className="mt-1 text-center text-[15px] font-medium">{TERMS_SUBTITLE}</p>
-      <p className="mt-1 mb-5 text-center text-[13px] text-[#86868b]">
-        Swipe or tap Next to read all {total} sections.
-      </p>
+    <div>
+      <h2 className="text-[17px] font-semibold text-center leading-snug">{doc.title}</h2>
+      {doc.subtitle && <p className="mt-0.5 text-center text-[14px] text-[#6e6e73]">{doc.subtitle}</p>}
 
       <div
         ref={trackRef}
         onScroll={handleScroll}
         role="region"
         aria-roledescription="carousel"
-        aria-label="Terms and Conditions"
+        aria-label={doc.title}
         style={{ height }}
-        className="no-scrollbar flex items-start snap-x snap-mandatory overflow-x-auto overflow-y-hidden transition-[height] duration-300"
+        className="mt-4 no-scrollbar flex items-start snap-x snap-mandatory overflow-x-auto overflow-y-hidden transition-[height] duration-300"
       >
-        {TERMS_SECTIONS.map((section, s) => (
+        {doc.sections.map((section, s) => (
           <article
             key={section.title}
             ref={(el) => {
@@ -88,9 +171,9 @@ export const Terms: React.FC<TermsProps> = ({ alreadyRead, onAgree }) => {
               <p className="text-[12px] font-medium uppercase tracking-wider text-[#86868b]">
                 Section {s + 1} of {total}
               </p>
-              <h2 className="mt-1 mb-3 text-[18px] font-semibold">
+              <h3 className="mt-1 mb-3 text-[18px] font-semibold">
                 {s + 1}. {section.title}
-              </h2>
+              </h3>
               <ol className="space-y-3 text-[14px] leading-relaxed">
                 {section.clauses.map((clause, c) => (
                   <li key={c} className="flex gap-2.5">
@@ -117,7 +200,7 @@ export const Terms: React.FC<TermsProps> = ({ alreadyRead, onAgree }) => {
         </button>
 
         <div className="flex gap-1.5" aria-hidden="true">
-          {TERMS_SECTIONS.map((section, i) => (
+          {doc.sections.map((section, i) => (
             <span
               key={section.title}
               className={`h-1.5 rounded-full transition-all ${
@@ -127,32 +210,28 @@ export const Terms: React.FC<TermsProps> = ({ alreadyRead, onAgree }) => {
           ))}
         </div>
 
-        <button
-          type="button"
-          onClick={() => goTo(index + 1)}
-          disabled={isLast}
-          className="h-[40px] px-4 rounded-[980px] text-[15px] font-medium disabled:opacity-30 cursor-pointer disabled:cursor-default"
-        >
-          Next
-        </button>
+        {isLast && onNextDocument ? (
+          <button
+            type="button"
+            onClick={onNextDocument}
+            className="h-[40px] px-4 rounded-[980px] text-[15px] font-medium cursor-pointer"
+          >
+            Next document
+          </button>
+        ) : (
+          <button
+            type="button"
+            onClick={() => goTo(index + 1)}
+            disabled={isLast}
+            className="h-[40px] px-4 rounded-[980px] text-[15px] font-medium disabled:opacity-30 cursor-pointer disabled:cursor-default"
+          >
+            Next
+          </button>
+        )}
       </div>
       <p className="sr-only" aria-live="polite">
-        Section {index + 1} of {total}: {TERMS_SECTIONS[index]?.title}
+        {doc.title}, section {index + 1} of {total}: {doc.sections[index]?.title}
       </p>
-
-      <button
-        type="button"
-        onClick={onAgree}
-        disabled={!reachedEnd}
-        className="mt-8 w-full h-[50px] bg-[#1d1d1f] hover:bg-[#333336] active:bg-black text-white text-[16px] font-medium rounded-[980px] transition disabled:opacity-40 disabled:cursor-not-allowed cursor-pointer"
-      >
-        I Agree
-      </button>
-      <p className="mt-3 text-center text-[13px] text-[#86868b]">
-        {reachedEnd
-          ? 'By tapping I Agree, you confirm you have read and accept the Terms & Conditions.'
-          : 'Read through to the last section to continue.'}
-      </p>
-    </section>
+    </div>
   );
 };
