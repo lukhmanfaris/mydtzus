@@ -28,14 +28,14 @@ export const HERO_IMAGE = {
  * a 2000:516 ratio: up to 672 × 173 on desktop/tablet, full width on phones.
  *
  * Supply: 2000 × 516 px PNG/JPG/WebP, logos/text at least 40px in from every
- * edge (corners are rounded on screen). Drop it into /public and update
- * `src`; the placeholder shows the spec until then.
+ * edge (corners are rounded on screen). Current file: page-banner.png,
+ * 8334 × 2150 (same ratio), used as supplied.
  */
 export const PAGE_BANNER = {
-  src: '/page-banner.svg',
+  src: '/page-banner.png',
   alt: 'MYDATA × ZUS Coffee',
-  width: 2000,
-  height: 516,
+  width: 8334,
+  height: 2150,
 };
 
 export const TERMS_TITLE = 'Terms & Conditions';
