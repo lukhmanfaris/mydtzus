@@ -24,18 +24,18 @@ export const HERO_IMAGE = {
 
 /**
  * Banner at the top of every page after the campaign page (T&C, form,
- * thank-you, closed). One image for all of them, shown 3:1 at the page width:
- * up to 672 × 224 on desktop/tablet, full width on phones.
+ * thank-you, closed). One image for all of them, shown at the page width with
+ * a 2000:516 ratio: up to 672 × 173 on desktop/tablet, full width on phones.
  *
- * Supply: 2016 × 672 px (3:1) PNG/JPG/WebP, logos/text at least 60px in from
- * every edge (corners are rounded on screen). Drop it into /public and update
+ * Supply: 2000 × 516 px PNG/JPG/WebP, logos/text at least 40px in from every
+ * edge (corners are rounded on screen). Drop it into /public and update
  * `src`; the placeholder shows the spec until then.
  */
 export const PAGE_BANNER = {
   src: '/page-banner.svg',
   alt: 'MYDATA × ZUS Coffee',
-  width: 2016,
-  height: 672,
+  width: 2000,
+  height: 516,
 };
 
 export const TERMS_TITLE = 'Terms & Conditions';
