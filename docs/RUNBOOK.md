@@ -124,7 +124,7 @@ campaign image in `public/`, point `HERO_IMAGE.src` at it and set
 `placeholder: false`.
 
 The banner at the top of the T&C, form, thank-you and closed pages is
-`PAGE_BANNER`: one image for all of them, 3:1, supplied at **2016 × 672 px**.
+`PAGE_BANNER`: one image for all of them, supplied at **2000 × 516 px**.
 Drop it into `public/` and point `PAGE_BANNER.src` at it.
 
 Document 1 is published verbatim from `Terms_and_Conditions_for_Zus_Redemption_LEGAL280926.docx`
