@@ -6,8 +6,8 @@ Vouchers are **not** issued by the app: the team emails them (via Zoho) within
 
 ```
 Zoho email blast (manual) ──CTA──▶  1. Campaign image → "Participate"
-                                     2. T&C: 3 documents in tabs, each as slides; one "I Agree"
-                                        (unlocks once every document is read to the end)
+                                     2. T&C: one document as slides (one per section); "I Agree"
+                                        unlocks once the last section is reached
                                      3. Form: Referral Code · Full Name · Phone · Email · Company
                                         → Submit (no tick boxes)
                                      4. Thank you — "voucher within 48 hours"
@@ -117,19 +117,22 @@ worker → Settings → Domains & Routes).
 ## Content
 
 All copy that marketing will want to change lives in **`src/content/campaign.ts`**:
-the campaign image and the T&C documents (`TERMS_DOCUMENTS`: one tab per
-document, one slide per section — add or remove freely). Documents marked
-`placeholder: true` show a draft banner on the T&C page. Put the real
-campaign image in `public/`, point `HERO_IMAGE.src` at it and set
-`placeholder: false`.
+the campaign image and the T&C (`TERMS_SECTIONS`: one slide per section — add
+or remove freely; clause numbers follow the order; web addresses in the text
+become tappable links). Put the real campaign image in `public/`, point
+`HERO_IMAGE.src` at it and set `placeholder: false`.
 
 The banner at the top of the T&C, form, thank-you and closed pages is
 `PAGE_BANNER`: one image for all of them, supplied at **2000 × 516 px**.
 Drop it into `public/` and point `PAGE_BANNER.src` at it.
 
-Document 1 is published verbatim from `Terms_and_Conditions_for_Zus_Redemption_LEGAL280926.docx`
-(tracked changes accepted). Documents 2 and 3 are placeholders. All three are
-pending legal approval; replace the text there when legal issues the final versions.
+The T&C is published verbatim from
+`CLEAN_Draft_Terms_and_Conditions_for_Zus_Redemption_LEGAL071026.docx`
+(6 sections, 25 clauses, including the Personal Data Protection section),
+including the typos in legal's text. Replace the clause text in
+`TERMS_SECTIONS` when legal issues a new version. This version replaced the
+earlier 5-section text (`…LEGAL280926`) and the two placeholder documents.
+The database stores only `terms_accepted_at`, not which version was accepted.
 
 ---
 

@@ -39,19 +39,20 @@ export const PAGE_BANNER = {
 };
 
 export const TERMS_TITLE = 'Terms & Conditions';
+export const TERMS_SUBTITLE = 'ZUS Coffee Voucher Redemption Programme';
 
 export interface TermsSection {
   title: string;
-  /** Rendered as 1.1, 1.2 … in order. */
+  /** Rendered as 1.1, 1.2 … in order. Web addresses in the text become tappable links. */
   clauses: string[];
 }
 
 /**
- * Campaign T&C — Terms_and_Conditions_for_Zus_Redemption_LEGAL280926.docx,
- * tracked changes accepted, published verbatim (including clause 3.6).
- * PENDING final legal approval.
+ * Terms & Conditions — CLEAN_Draft_Terms_and_Conditions_for_Zus_Redemption_LEGAL071026.docx,
+ * approved for publication and shown verbatim, including the typos in legal's text.
+ * One slide per section; clause numbers (1.1, 1.2 …) follow the order below.
  */
-const CAMPAIGN_TERMS: TermsSection[] = [
+export const TERMS_SECTIONS: TermsSection[] = [
   {
     title: 'Eligibility',
     clauses: [
@@ -93,57 +94,18 @@ const CAMPAIGN_TERMS: TermsSection[] = [
     ],
   },
   {
+    title: 'Personal Data Protection',
+    clauses: [
+      'By participating in the Programme, each Participant acknowledges that the Participant has read and understood MYDATASSM’s Privacy Policy (https://www.mydata-ssm.com.my/policy) (“Privacy Policy”) and PDPA Notice (https://www.mydata-ssm.com.my/pdpa) (“PDPA Notice”) and consents to the collection, use, processing, disclosure and retention of the Participant’s personal data by MYDATASSM, to the extent necessary, for the purposes of administering and managing the Programme, verifying eligibility, contacting Participants, announcing winners, delivering or fulfilling vouchers, gifts or prizes, preventing fraud or misuse, handling enquiries or complaints, complying with applicable legal and regulatory requirements, and for other purposes set out in the Privacy Policy and PDPA Notice.',
+      'MYDATASSM may disclose a Participant’s personal data to its affiliates, service providers, agents and business partners, including ZUS Coffee and any prize fulfilment provider, where reasonably necessary for the administration of the Programme and fulfilment of vouchers, gifts or prizes, or where required or permitted by law.',
+      'Participants may request access to or correction of their personal data, or submit any enquiry relating to its processing, using the contact details stated in the Privacy Policy or PDPA Notice. In the event of any inconsistency between these Terms & Conditions and the Privacy Policy or PDPA Notice in relation to the processing of personal data, the Privacy Policy and PDPA Notice shall prevail.',
+    ],
+  },
+  {
     title: 'General',
     clauses: [
       'MYDATASSM reserves the right to amend, suspend or terminate the Programme or amend any of these Terms & Conditions at any time where reasonably necessary.',
       'MYDATASSM\'s decision on all matters relating to the Prorgramme shall be final and conclusive.',
-    ],
-  },
-];
-
-export interface TermsDocument {
-  /** Short label for the tab. */
-  tab: string;
-  title: string;
-  subtitle?: string;
-  /** One slide per section, clauses numbered 1.1, 1.2 … within the document. */
-  sections: TermsSection[];
-  /** Stand-in text; shows a draft banner on the T&C page while any remain. */
-  placeholder?: boolean;
-}
-
-/**
- * The documents on page 2, in tab order. All must be read to the last section
- * before "I Agree" unlocks; one agreement covers all of them.
- * Which documents these are is still to be confirmed by legal.
- */
-export const TERMS_DOCUMENTS: TermsDocument[] = [
-  {
-    tab: 'Campaign T&C',
-    title: 'Terms & Conditions',
-    subtitle: 'ZUS Coffee Voucher Redemption Programme',
-    sections: CAMPAIGN_TERMS,
-  },
-  {
-    tab: 'Document 2',
-    title: 'Document 2 — title pending',
-    placeholder: true,
-    sections: [
-      {
-        title: 'Pending legal approval',
-        clauses: ['The final wording of this document will be supplied by legal.'],
-      },
-    ],
-  },
-  {
-    tab: 'Document 3',
-    title: 'Document 3 — title pending',
-    placeholder: true,
-    sections: [
-      {
-        title: 'Pending legal approval',
-        clauses: ['The final wording of this document will be supplied by legal.'],
-      },
     ],
   },
 ];
