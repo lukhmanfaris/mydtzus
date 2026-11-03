@@ -164,6 +164,12 @@ same phone is not a new person. Entries marked `REJECTED` never get a code.
    **Never commit the codes to GitHub**: the repository is public.
 4. Check the import: `select count(*), min(seq), max(seq) from vouchers;`
    The count must equal `max`, with `min` = 1. A gap means a row was lost.
+5. Zoho Marketing Automation (menu names may differ slightly):
+   - **Settings → Fields** (contact fields): add `Voucher Code` (text) and
+     `Voucher Expiry` (text or date).
+   - Build the voucher email template. Insert the name, code and expiry from
+     the **merge tag / personalization menu**. Do not type the tags by hand,
+     or they arrive as raw text.
 
 ### Each batch (before each Zoho send)
 
@@ -178,9 +184,28 @@ select assign_pending_vouchers();
 select * from voucher_send_list;
 ```
 
-Download step 3 as CSV and use it as the Zoho mail-merge list (`full_name`,
-`email`, `voucher_code`, `voucher_expires`). After the Zoho send, mark the
-batch as sent:
+Run one batch a day: that keeps the "voucher within 48 hours" promise. Then
+send it through Zoho Marketing Automation:
+
+1. Download the step 3 result as CSV.
+2. Zoho → **Contacts → Import** → upload the CSV and map the columns:
+
+   | CSV column        | Zoho field     |
+   |-------------------|----------------|
+   | `email`           | Email          |
+   | `full_name`       | Name           |
+   | `voucher_code`    | Voucher Code   |
+   | `voucher_expires` | Voucher Expiry |
+
+   Add the contacts to a **new list for each batch**, e.g.
+   `ZUS Voucher – Batch 1 (11 Nov)`, so nobody gets the email twice. If Zoho
+   asks about consent / opt-in type, choose MYDATA's usual option (they agreed
+   to the T&C on the form).
+3. Create an email campaign from the voucher template. Recipients: **that
+   batch list only**. Send.
+4. Open the campaign's send report and check for skipped or bounced contacts
+   (see below).
+5. Mark the batch as sent in Supabase:
 
 ```sql
 update submissions set status = 'SENT', voucher_sent_at = now()
@@ -194,6 +219,14 @@ having been emailed.
 `assign_pending_vouchers()` is safe to re-run: it only touches people without
 a code, and stops quietly when the codes run out. `submissions_export` still
 shows every entry with `email_count` / `phone_count` for review by hand.
+
+### Skipped or bounced emails
+
+- **Unsubscribed contacts are skipped.** Anyone who unsubscribed from an
+  earlier MYDATA email does not get the Zoho campaign, but still holds a code.
+  Send those codes by hand from Zoho Mail or Outlook.
+- **Bounced emails** (typo in the address): the code is assigned but not
+  delivered. Follow up by phone; the number is in `submissions`.
 
 ### When the codes run out
 
