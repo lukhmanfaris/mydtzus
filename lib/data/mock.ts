@@ -7,7 +7,7 @@ import type { DataAdapter, SubmissionRecord } from './adapter.js';
  */
 const rows: Array<SubmissionRecord & { id: string; submitted_at: string }> = [];
 
-export const mockAdapter: DataAdapter = {
+export const createMockAdapter = (totalCodes: number): DataAdapter => ({
   async insertSubmission(record) {
     const row = { ...record, id: crypto.randomUUID(), submitted_at: new Date().toISOString() };
     rows.push(row);
@@ -22,4 +22,17 @@ export const mockAdapter: DataAdapter = {
   async ping() {
     console.log(`[mock] ping (${rows.length} rows)`);
   },
-};
+
+  // Same rule as the voucher_people view: one person per email and per phone.
+  async voucherCapacity() {
+    const seenEmail = new Set<string>();
+    const seenPhone = new Set<string>();
+    let claimed = 0;
+    for (const r of rows) {
+      if (!seenEmail.has(r.email) && !seenPhone.has(r.phone)) claimed++;
+      seenEmail.add(r.email);
+      seenPhone.add(r.phone);
+    }
+    return { totalCodes, claimed };
+  },
+});

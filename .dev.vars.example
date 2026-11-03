@@ -4,6 +4,11 @@
 # In-memory store; rows are logged to the terminal and lost on restart.
 DATA_SOURCE=mock
 
+# Mock only: pretend this many voucher codes are loaded. Blank/0 = none (form
+# stays open). Set to 1 and submit twice with different details to preview the
+# "All vouchers have been claimed" screen.
+MOCK_VOUCHER_CODES=
+
 # Blank = never closes. Set a past date to preview the "campaign ended" screen.
 CAMPAIGN_END_ISO=
 

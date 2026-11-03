@@ -1,8 +1,8 @@
 # ZUS Coffee Voucher Campaign
 
 Campaign image → Terms & Conditions → form → thank-you. English, mobile first.
-Vouchers are **not** issued by the app: the team emails them (via Zoho) within
-48 hours, using the submissions exported from Supabase.
+Vouchers are **not** emailed by the app: Supabase assigns codes first come,
+first served, and the team emails them (via Zoho mail merge) within 48 hours.
 
 ```
 Zoho email blast (manual) ──CTA──▶  1. Campaign image → "Participate"
@@ -11,7 +11,8 @@ Zoho email blast (manual) ──CTA──▶  1. Campaign image → "Participate
                                      3. Form: Referral Code · Full Name · Phone · Email · Company
                                         → Submit (no tick boxes)
                                      4. Thank you — "voucher within 48 hours"
-                                     (Closed screen once CAMPAIGN_END_ISO passes)
+                                     (Closed screen once CAMPAIGN_END_ISO passes, or
+                                      "All vouchers have been claimed" once codes run out)
 ```
 
 ---
@@ -25,8 +26,7 @@ Zoho email blast (manual) ──CTA──▶  1. Campaign image → "Participate
 | `lib/validation/` | Zod schema + phone/email normalisation, shared by browser and Worker |
 | `lib/data/` | Adapter boundary — `mock` (local) or `supabase` (production) |
 | `lib/security/turnstile.ts` | Cloudflare Turnstile server-side check |
-| `supabase/migrations/` | `submissions` table + `submissions_export` view |
-| `supabase/optional/` | Voucher auto-assign script — only if you choose that option |
+| `supabase/migrations/` | `submissions` table, `submissions_export` view, `vouchers` + first-come-first-served assignment |
 
 The React app is served by Workers Assets; only `/api/*` runs the Worker.
 
@@ -38,7 +38,10 @@ The React app is served by Workers Assets; only `/api/*` runs the Worker.
 4. **Bot check** — Turnstile token verified with Cloudflare → `403`. Fails closed if Cloudflare is unreachable or the secret is missing.
 5. **Repeat guard** — the same email **and** phone within 10 minutes (double tap,
    back-and-resubmit) gets `201` but is not stored again.
-6. **Insert** into `submissions` with a server-stamped `terms_accepted_at` → `201`.
+6. **Vouchers left** — once every code has a person (see
+   [When the codes run out](#when-the-codes-run-out)) → `410 FULLY_CLAIMED`, UI
+   shows "All vouchers have been claimed". Someone who already entered gets `201`.
+7. **Insert** into `submissions` with a server-stamped `terms_accepted_at` → `201`.
 
 Repeats outside the 10-minute window are allowed in by design; the export view
 flags them.
@@ -138,38 +141,79 @@ The database stores only `terms_accepted_at`, not which version was accepted.
 
 ## Sending vouchers
 
-Supabase dashboard → SQL Editor → run the query below → download the results
-as CSV:
+First come, first served: the earliest entry gets row 1 of ZUS's code list,
+the next gets row 2, and so on. Rows are used strictly in order and never
+skipped. One code per person: a repeat entry with the same email **or** the
+same phone is not a new person. Entries marked `REJECTED` never get a code.
+
+### One-time setup
+
+1. Supabase → SQL Editor → run `supabase/migrations/20261103000000_vouchers.sql`.
+2. Prepare ZUS's codes as a CSV with a header row:
+
+   ```
+   seq,code,expires_at
+   1,ZUSABC123,2026-12-31
+   2,ZUSDEF456,2026-12-31
+   ```
+
+   `seq` is the row number in ZUS's list (in Excel: type 1 and 2, then drag
+   the fill handle down). `expires_at` is optional; drop the column if ZUS
+   gave no expiry date.
+3. Supabase → Table Editor → `vouchers` → Insert → **Import data from CSV**.
+   **Never commit the codes to GitHub**: the repository is public.
+4. Check the import: `select count(*), min(seq), max(seq) from vouchers;`
+   The count must equal `max`, with `min` = 1. A gap means a row was lost.
+
+### Each batch (before each Zoho send)
 
 ```sql
--- One row per person: the earliest entry for each email and each phone.
-select submitted_at, full_name, email, phone, company_name, referral_code, voucher_code
-from submissions_export
-where status = 'PENDING' and first_by_email and first_by_phone
-order by submitted_at;
+-- 1. Exclude anything that should not get a code (spam, test entries):
+update submissions set status = 'REJECTED' where email in ('...');
+
+-- 2. Hand out the next codes, in list order. Returns how many were assigned.
+select assign_pending_vouchers();
+
+-- 3. The send list:
+select * from voucher_send_list;
 ```
 
-`email_count` / `phone_count` show how many entries share a value, for anything
-you want to review by hand.
-
-After sending from Zoho, record it:
+Download step 3 as CSV and use it as the Zoho mail-merge list (`full_name`,
+`email`, `voucher_code`, `voucher_expires`). After the Zoho send, mark the
+batch as sent:
 
 ```sql
 update submissions set status = 'SENT', voucher_sent_at = now()
-where id in (...);            -- or by email list
--- Exclude an entry: set status = 'REJECTED'
+where status = 'PENDING' and voucher_code is not null;
 ```
 
-### Matching vouchers to people — still to decide
+Do **not** run `assign_pending_vouchers()` between exporting the list and
+marking it sent. Otherwise people assigned in between are marked SENT without
+having been emailed.
 
-- **Manual:** paste codes into the `voucher_code` column (or keep them in your
-  own spreadsheet). Nothing else needed.
-- **Automatic:** run `supabase/optional/voucher_auto_assign.sql` once, load ZUS's
-  codes into `vouchers`, then `select assign_pending_vouchers();` before each
-  export. It gives one code per person (earliest entry per email and phone),
-  skips `REJECTED`, and is safe to re-run. Instructions are at the top of the file.
+`assign_pending_vouchers()` is safe to re-run: it only touches people without
+a code, and stops quietly when the codes run out. `submissions_export` still
+shows every entry with `email_count` / `phone_count` for review by hand.
 
-Either way, no change to the app or its screens.
+### When the codes run out
+
+The form closes by itself: once the number of people (counted as above) reaches
+the number of codes in `vouchers`, new visitors see **"All vouchers have been
+claimed"**. Someone who already entered and submits again still sees the
+thank-you page. With no codes loaded, the form stays open.
+
+```sql
+select * from voucher_capacity;   -- total_codes, claimed
+```
+
+- **Spam counts until it is marked `REJECTED`.** Rejecting entries frees their
+  places and reopens the form.
+- **Loading more codes** reopens the form too. Continue `seq` from the last row.
+- A few people may get in at the exact moment the last place goes (two
+  submissions in the same instant). They wait with no code; `assign_pending_vouchers()`
+  gives them one only if more codes are loaded.
+- If the capacity check itself fails (database glitch), the form stays open
+  rather than closing by mistake.
 
 ---
 

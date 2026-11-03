@@ -1,4 +1,4 @@
-import { mockAdapter } from './mock.js';
+import { createMockAdapter } from './mock.js';
 import { createSupabaseAdapter } from './supabase.js';
 
 /**
@@ -23,6 +23,13 @@ export interface DataAdapter {
   hasRecentSubmission(email: string, phone: string, sinceIso: string): Promise<boolean>;
   /** Cheap read that counts as database activity (keeps a free Supabase project awake). */
   ping(): Promise<void>;
+  /** Voucher codes loaded vs people entered (one per email/phone, rejected excluded). */
+  voucherCapacity(): Promise<VoucherCapacity>;
+}
+
+export interface VoucherCapacity {
+  totalCodes: number;
+  claimed: number;
 }
 
 /** The subset of the Worker environment the data layer reads. */
@@ -30,10 +37,12 @@ export interface DataEnv {
   DATA_SOURCE?: string;
   SUPABASE_URL?: string;
   SUPABASE_SERVICE_ROLE_KEY?: string;
+  /** Local testing only: how many voucher codes the mock store pretends to hold. */
+  MOCK_VOUCHER_CODES?: string;
 }
 
 export function getDataAdapter(env: DataEnv): DataAdapter {
   const source = (env.DATA_SOURCE || 'supabase').toLowerCase().trim();
-  if (source === 'mock') return mockAdapter;
+  if (source === 'mock') return createMockAdapter(Number(env.MOCK_VOUCHER_CODES) || 0);
   return createSupabaseAdapter(env.SUPABASE_URL, env.SUPABASE_SERVICE_ROLE_KEY);
 }

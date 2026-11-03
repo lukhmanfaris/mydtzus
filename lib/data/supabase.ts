@@ -51,5 +51,15 @@ export function createSupabaseAdapter(
       const { error } = await client().from('submissions').select('id').limit(1);
       if (error) throw new Error(`Supabase ping failed: ${error.message}`);
     },
+
+    async voucherCapacity() {
+      const { data, error } = await client()
+        .from('voucher_capacity')
+        .select('total_codes, claimed')
+        .single();
+
+      if (error) throw new Error(`Supabase capacity check failed: ${error.message}`);
+      return { totalCodes: Number(data.total_codes), claimed: Number(data.claimed) };
+    },
   };
 }
