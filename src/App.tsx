@@ -4,7 +4,7 @@ import { Campaign } from './components/Campaign.js';
 import { Terms } from './components/Terms.js';
 import { FormScreen } from './components/FormScreen.js';
 import { ThankYou } from './components/ThankYou.js';
-import { Closed } from './components/Closed.js';
+import { Closed, type ClosedReason } from './components/Closed.js';
 
 type Step = 'loading' | 'campaign' | 'terms' | 'form' | 'thanks' | 'closed';
 
@@ -21,6 +21,8 @@ const SHOW_BANNER: Record<Step, boolean> = {
 
 interface Config {
   closed: boolean;
+  /** Every voucher code has a person waiting for it. */
+  fullyClaimed?: boolean;
   turnstileSiteKey: string | null;
 }
 
@@ -32,6 +34,7 @@ interface Config {
 export default function App() {
   const [step, setStep] = useState<Step>('loading');
   const [config, setConfig] = useState<Config>({ closed: false, turnstileSiteKey: null });
+  const [closedReason, setClosedReason] = useState<ClosedReason>('ended');
   const [submittedEmail, setSubmittedEmail] = useState('');
   const [termsRead, setTermsRead] = useState(false);
 
@@ -46,7 +49,8 @@ export default function App() {
       .then((res) => (res.ok ? res.json() : Promise.reject(new Error(String(res.status)))))
       .then((c: Config) => {
         setConfig(c);
-        setStep(c.closed ? 'closed' : 'campaign');
+        if (c.closed || c.fullyClaimed) setClosedReason(c.closed ? 'ended' : 'full');
+        setStep(c.closed || c.fullyClaimed ? 'closed' : 'campaign');
       })
       .catch((err) => {
         // The form shows its own "security check unavailable" message.
@@ -92,11 +96,14 @@ export default function App() {
                 setSubmittedEmail(email);
                 go('thanks');
               }}
-              onClosed={() => go('closed')}
+              onClosed={(reason) => {
+                setClosedReason(reason);
+                go('closed');
+              }}
             />
           )}
           {step === 'thanks' && <ThankYou email={submittedEmail} />}
-          {step === 'closed' && <Closed />}
+          {step === 'closed' && <Closed reason={closedReason} />}
         </main>
       </div>
 

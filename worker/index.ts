@@ -1,7 +1,7 @@
 import { Hono } from 'hono';
 import { secureHeaders } from 'hono/secure-headers';
 import { SubmissionSchema, toFieldErrors } from '../lib/validation/form.js';
-import { getDataAdapter, type DataEnv } from '../lib/data/adapter.js';
+import { getDataAdapter, type DataAdapter, type DataEnv } from '../lib/data/adapter.js';
 import { verifyTurnstile } from '../lib/security/turnstile.js';
 
 /**
@@ -43,10 +43,28 @@ function isClosed(env: Env): boolean {
   return Date.now() >= endsAt;
 }
 
-app.get('/api/config', (c) => {
+/**
+ * True once every loaded voucher code has a person waiting for it. With no
+ * codes loaded there is nothing to count against, so the form stays open. A
+ * failed check also leaves the form open: if the database is down the insert
+ * fails anyway, and a working form must never be closed by a glitch.
+ */
+async function isFullyClaimed(store: DataAdapter): Promise<boolean> {
+  try {
+    const { totalCodes, claimed } = await store.voucherCapacity();
+    return totalCodes > 0 && claimed >= totalCodes;
+  } catch (err) {
+    console.error('Voucher capacity check failed:', err);
+    return false;
+  }
+}
+
+app.get('/api/config', async (c) => {
   c.header('Cache-Control', 'no-store');
+  const closed = isClosed(c.env);
   return c.json({
-    closed: isClosed(c.env),
+    closed,
+    fullyClaimed: closed ? false : await isFullyClaimed(getDataAdapter(c.env)),
     turnstileSiteKey: c.env.TURNSTILE_SITE_KEY || null,
   });
 });
@@ -112,6 +130,14 @@ app.post('/api/submit', async (c) => {
     if (await store.hasRecentSubmission(data.email, data.phone, since)) {
       // Same answer as a fresh entry: the person sees the thank-you page either way.
       return c.json({ ok: true }, 201);
+    }
+
+    if (await isFullyClaimed(store)) {
+      // Someone who already entered keeps their place; nobody new gets in.
+      if (await store.hasRecentSubmission(data.email, data.phone, new Date(0).toISOString())) {
+        return c.json({ ok: true }, 201);
+      }
+      return c.json({ code: 'FULLY_CLAIMED', error: 'All vouchers have been claimed.' }, 410);
     }
 
     await store.insertSubmission({

@@ -11,7 +11,8 @@ import { PrimaryButton } from './PrimaryButton.js';
 interface FormScreenProps {
   turnstileSiteKey: string | null;
   onSubmitted: (email: string) => void;
-  onClosed: () => void;
+  /** The campaign ended, or every voucher has been claimed, while the form was open. */
+  onClosed: (reason: 'ended' | 'full') => void;
 }
 
 type TextField = 'referralCode' | 'fullName' | 'phone' | 'email' | 'companyName';
@@ -100,7 +101,7 @@ export const FormScreen: React.FC<FormScreenProps> = ({ turnstileSiteKey, onSubm
       turnstile.reset();
 
       if (res.status === 410) {
-        onClosed();
+        onClosed(data.code === 'FULLY_CLAIMED' ? 'full' : 'ended');
         return;
       }
       if (res.status === 400 && data.fields) {
