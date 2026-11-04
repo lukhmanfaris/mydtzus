@@ -50,6 +50,7 @@ export interface TermsSection {
 /**
  * Terms & Conditions — CLEAN_Draft_Terms_and_Conditions_for_Zus_Redemption_LEGAL071026.docx,
  * approved for publication and shown verbatim, including the typos in legal's text.
+ * Clause 4.1 dates updated 4 Nov 2026 from MYDATA's revised text.
  * One slide per section; clause numbers (1.1, 1.2 …) follow the order below.
  */
 export const TERMS_SECTIONS: TermsSection[] = [
@@ -86,7 +87,7 @@ export const TERMS_SECTIONS: TermsSection[] = [
   {
     title: 'Redemption Period & Voucher Conditions',
     clauses: [
-      'The redemption period is valid from 10 October 2026 to 10 November 2026 (“Redemption Period”).',
+      'The redemption period is valid from 1 November 2026 to 25 December 2026 (“Redemption Period”).',
       'Voucher codes must be redeemed within the Redemption Period. Any voucher code not redeemed before the expiry of the Redemption Period shall automatically expire and shall not be replaced, extended or exchanged for cash, unless otherwise determined by MYDATASSM.',
       'Each voucher code is uniquely assigned to the respective Participant and is strictly non-transferable and may only be used by that Participant.',
       'A Participant shall not sell, exchange, share or transfer their voucher code to any other person.',
