@@ -321,8 +321,10 @@ through Zoho Marketing Automation:
    | `voucher_code`    | Voucher Code   |
    | `voucher_expires` | Voucher Expiry |
 
-   Email 03 greets by First Name, so it shows the full name as the person typed
-   it. Leave `group_name` and the other columns unmapped.
+   Email 03 greets by First Name, so it shows the person's full name. The send
+   list tidies it to First Letter Capital (`AHMAD FARHAN` becomes `Ahmad Farhan`),
+   and `submissions` keeps it as typed. Leave `group_name` and the other columns
+   unmapped.
 
    Add the contacts to a **new list for each batch**, e.g.
    `ZUS Voucher – Batch 1 (11 Nov)`, so nobody gets the email twice. Most people
