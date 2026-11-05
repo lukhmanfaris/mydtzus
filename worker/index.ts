@@ -25,6 +25,9 @@ const app = new Hono<{ Bindings: Env }>();
  */
 const DUPLICATE_WINDOW_MS = 10 * 60 * 1000;
 
+const INVALID_REFERRAL_CODE =
+  "That referral code isn't valid. Please check your invitation email and enter it exactly as shown.";
+
 app.use('/api/*', secureHeaders());
 
 /**
@@ -44,15 +47,15 @@ function isClosed(env: Env): boolean {
 }
 
 /**
- * True once every loaded voucher code has a person waiting for it. With no
- * codes loaded there is nothing to count against, so the form stays open. A
- * failed check also leaves the form open: if the database is down the insert
- * fails anyway, and a working form must never be closed by a glitch.
+ * True once every active group is full, which closes the site for everyone. One
+ * full group alone does not: the form cannot know a visitor's group until they
+ * submit, and `enterCampaign` stops that group then. A failed check leaves the
+ * form open: if the database is down the entry fails anyway, and a working form
+ * must never be closed by a glitch.
  */
 async function isFullyClaimed(store: DataAdapter): Promise<boolean> {
   try {
-    const { totalCodes, claimed } = await store.voucherCapacity();
-    return totalCodes > 0 && claimed >= totalCodes;
+    return await store.allGroupsFull();
   } catch (err) {
     console.error('Voucher capacity check failed:', err);
     return false;
@@ -132,15 +135,8 @@ app.post('/api/submit', async (c) => {
       return c.json({ ok: true }, 201);
     }
 
-    if (await isFullyClaimed(store)) {
-      // Someone who already entered keeps their place; nobody new gets in.
-      if (await store.hasRecentSubmission(data.email, data.phone, new Date(0).toISOString())) {
-        return c.json({ ok: true }, 201);
-      }
-      return c.json({ code: 'FULLY_CLAIMED', error: 'All vouchers have been claimed.' }, 410);
-    }
-
-    await store.insertSubmission({
+    // After Turnstile, so bots cannot try codes freely. Wrong codes are not stored.
+    const result = await store.enterCampaign({
       referral_code: data.referralCode,
       full_name: data.fullName,
       phone: data.phone,
@@ -149,6 +145,20 @@ app.post('/api/submit', async (c) => {
       // `termsAccepted` is literal `true` in the schema; the server stamps the time.
       terms_accepted_at: now,
     });
+
+    if (result === 'INVALID_CODE') {
+      return c.json(
+        {
+          code: 'INVALID_REFERRAL_CODE',
+          error: 'Please check the highlighted fields.',
+          fields: { referralCode: INVALID_REFERRAL_CODE },
+        },
+        400
+      );
+    }
+    if (result === 'FULL') {
+      return c.json({ code: 'FULLY_CLAIMED', error: 'All vouchers have been claimed.' }, 410);
+    }
   } catch (err) {
     console.error('Submission insert failed:', err);
     return c.json({ code: 'SERVER_ERROR', error: 'Something went wrong. Please try again.' }, 500);

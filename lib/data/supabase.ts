@@ -1,5 +1,5 @@
 import { createClient, type SupabaseClient } from '@supabase/supabase-js';
-import type { DataAdapter } from './adapter.js';
+import type { DataAdapter, EntryResult } from './adapter.js';
 
 /**
  * Writes go through the service role key, which bypasses RLS. It is a Worker
@@ -23,15 +23,18 @@ export function createSupabaseAdapter(
   };
 
   return {
-    async insertSubmission(record) {
-      const { data, error } = await client()
-        .from('submissions')
-        .insert(record)
-        .select('id')
-        .single();
+    async enterCampaign(record) {
+      const { data, error } = await client().rpc('enter_campaign', {
+        p_referral_code: record.referral_code,
+        p_full_name: record.full_name,
+        p_phone: record.phone,
+        p_email: record.email,
+        p_company_name: record.company_name,
+        p_terms_accepted_at: record.terms_accepted_at,
+      });
 
-      if (error) throw new Error(`Supabase insert failed: ${error.message}`);
-      return { id: data.id as string };
+      if (error) throw new Error(`Supabase entry failed: ${error.message}`);
+      return data as EntryResult;
     },
 
     async hasRecentSubmission(email, phone, sinceIso) {
@@ -52,14 +55,14 @@ export function createSupabaseAdapter(
       if (error) throw new Error(`Supabase ping failed: ${error.message}`);
     },
 
-    async voucherCapacity() {
+    async allGroupsFull() {
       const { data, error } = await client()
-        .from('voucher_capacity')
-        .select('total_codes, claimed')
-        .single();
+        .from('group_capacity')
+        .select('claimed, places')
+        .eq('active', true);
 
       if (error) throw new Error(`Supabase capacity check failed: ${error.message}`);
-      return { totalCodes: Number(data.total_codes), claimed: Number(data.claimed) };
+      return data.length > 0 && data.every((g) => Number(g.claimed) >= Number(g.places));
     },
   };
 }

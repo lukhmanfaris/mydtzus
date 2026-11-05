@@ -15,7 +15,7 @@ import {
  * T&C page; the form itself has no tick boxes.
  */
 export const SubmissionSchema = z.object({
-  /** Free text — a shared code we hand out, not validated against a list. */
+  /** Format only here: the database checks it against the valid codes, which never reach the browser. */
   referralCode: z
     .string({ message: 'Please enter your referral code.' })
     .transform(normaliseReferralCode)
