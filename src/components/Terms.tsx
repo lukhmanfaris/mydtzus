@@ -33,6 +33,25 @@ const ClauseText: React.FC<{ text: string }> = ({ text }) => (
   </>
 );
 
+/** One section's clauses, numbered 1.1, 1.2 … Shared with the /terms page. */
+export const ClauseList: React.FC<{ sectionNumber: number; clauses: string[] }> = ({
+  sectionNumber,
+  clauses,
+}) => (
+  <ol className="space-y-3 text-[14px] leading-relaxed">
+    {clauses.map((clause, c) => (
+      <li key={c} className="flex gap-2.5">
+        <span className="shrink-0 font-medium tabular-nums text-[#86868b]">
+          {sectionNumber}.{c + 1}
+        </span>
+        <span className="min-w-0">
+          <ClauseText text={clause} />
+        </span>
+      </li>
+    ))}
+  </ol>
+);
+
 /**
  * Page 2 — the Terms & Conditions as swipeable slides, one per section.
  * "I Agree" unlocks only once the reader has reached the last section.
@@ -117,18 +136,7 @@ export const Terms: React.FC<TermsProps> = ({ alreadyRead, onAgree }) => {
               <h2 className="mt-1 mb-3 text-[18px] font-semibold">
                 {s + 1}. {section.title}
               </h2>
-              <ol className="space-y-3 text-[14px] leading-relaxed">
-                {section.clauses.map((clause, c) => (
-                  <li key={c} className="flex gap-2.5">
-                    <span className="shrink-0 font-medium tabular-nums text-[#86868b]">
-                      {s + 1}.{c + 1}
-                    </span>
-                    <span className="min-w-0">
-                      <ClauseText text={clause} />
-                    </span>
-                  </li>
-                ))}
-              </ol>
+              <ClauseList sectionNumber={s + 1} clauses={section.clauses} />
             </div>
           </article>
         ))}

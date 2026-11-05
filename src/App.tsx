@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { PageBanner } from './components/PageBanner.js';
+import { PageFooter } from './components/PageFooter.js';
 import { Campaign } from './components/Campaign.js';
 import { Terms } from './components/Terms.js';
 import { FormScreen } from './components/FormScreen.js';
@@ -107,11 +108,7 @@ export default function App() {
         </main>
       </div>
 
-      <footer className="w-full py-6 text-center border-t border-[#f5f5f7]">
-        <p className="text-[12px] text-[#86868b]">
-          &copy; {new Date().getFullYear()} MYDATA Analytics Sdn Bhd | All rights reserved.
-        </p>
-      </footer>
+      <PageFooter />
     </div>
   );
 }

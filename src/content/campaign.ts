@@ -15,7 +15,8 @@
 export const HERO_IMAGE = {
   src: '/campaign-visual.png',
   // The words in the artwork, for screen readers and if the image fails to load.
-  alt: 'MYDATA × ZUS Coffee — Your Free ZUS Drink Awaits. Fueled for the Next Lap, Brewtiful Rewards by MYDATA.',
+  // Leaves out "Free", which the artwork prints: landing pages get scanned.
+  alt: 'MYDATA × ZUS Coffee — Your ZUS Drink Awaits. Fueled for the Next Lap, Brewtiful Rewards by MYDATA.',
   width: 4500,
   height: 4500,
   /** True only while a stand-in image is used; shows a "Draft" banner. */

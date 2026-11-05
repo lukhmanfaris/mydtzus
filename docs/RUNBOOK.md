@@ -15,6 +15,9 @@ Zoho email blast (manual) ──CTA──▶  1. Campaign image → "Participate
                                       "All vouchers have been claimed" once codes run out)
 ```
 
+`/terms` shows the same T&C on one page for the emails to link to. It makes no
+API call, so it stays up after the form closes or the vouchers run out.
+
 ---
 
 ## Stack
@@ -153,8 +156,8 @@ same phone is not a new person. Entries marked `REJECTED` never get a code.
 
    ```
    seq,code,expires_at
-   1,ZUSABC123,2026-12-31
-   2,ZUSDEF456,2026-12-31
+   1,ZUSABC123,2026-12-25
+   2,ZUSDEF456,2026-12-25
    ```
 
    `seq` is the row number in ZUS's list (in Excel: type 1 and 2, then drag
@@ -193,7 +196,7 @@ send it through Zoho Marketing Automation:
    | CSV column        | Zoho field     |
    |-------------------|----------------|
    | `email`           | Email          |
-   | `full_name`       | Name           |
+   | `full_name`       | First Name     |
    | `voucher_code`    | Voucher Code   |
    | `voucher_expires` | Voucher Expiry |
 
