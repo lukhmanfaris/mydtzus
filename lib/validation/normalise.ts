@@ -64,8 +64,8 @@ export function normaliseText(input: string): string {
 
 /**
  * Referral code → trimmed, whitespace removed, uppercased.
- * Any value is accepted; normalising only makes `zus 2026` and `ZUS2026` group
- * together when the team filters the export.
+ * So `zus 2026` and `ZUS2026` both match the code stored in `referral_groups`,
+ * which must be saved in this same form.
  */
 export function normaliseReferralCode(input: string): string {
   return String(input ?? '').replace(/\s+/g, '').toUpperCase();

@@ -4,9 +4,12 @@
 # In-memory store; rows are logged to the terminal and lost on restart.
 DATA_SOURCE=mock
 
-# Mock only: pretend this many voucher codes are loaded. Blank/0 = none (form
-# stays open). Set to 1 and submit twice with different details to preview the
-# "All vouchers have been claimed" screen.
+# The mock accepts one referral code: LOCALTEST. Anything else shows the
+# wrong-code error. Real codes live in Supabase, never here.
+
+# Mock only: the voucher limit. Blank/0 = no limit (form stays open). Set to 1
+# and submit twice with different details to preview the "All vouchers have
+# been claimed" screen.
 MOCK_VOUCHER_CODES=
 
 # Blank = never closes. Set a past date to preview the "campaign ended" screen.
