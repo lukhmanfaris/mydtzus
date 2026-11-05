@@ -211,12 +211,20 @@ Groups can be loaded at any time, one by one.
 
 1. Supabase → Table Editor → `referral_groups` → Insert row:
 
-   | Column          | Value                                                       |
-   |-----------------|-------------------------------------------------------------|
-   | `group_name`    | The group, e.g. `Sales`                                     |
-   | `referral_code` | Exactly as in that group's email 02: capitals, no spaces    |
-   | `voucher_limit` | The group's number                                          |
-   | `active`        | true                                                        |
+   | Column          | Value                                                                  |
+   |-----------------|------------------------------------------------------------------------|
+   | `group_name`    | The group, e.g. `Sales`                                                |
+   | `referral_code` | The one short group code in its email 02. **Not the voucher codes.**   |
+   | `voucher_limit` | The group's number                                                     |
+   | `active`        | true                                                                   |
+
+   Type `referral_code` exactly as in the email, in capitals with no spaces. Then
+   check it matches:
+
+   ```sql
+   select referral_code = '<code from email 02>' as matches_email from referral_groups
+   where group_name = 'Sales';
+   ```
 
    Skip this step when adding more codes to a group that already exists.
 2. Find the next free row number:
