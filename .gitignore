@@ -5,6 +5,7 @@ coverage/
 .wrangler/
 .DS_Store
 *.log
+*.csv
 .env*
 .dev.vars*
 !.dev.vars.example
